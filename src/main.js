@@ -17,6 +17,7 @@ import { SiteManager } from './sites.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
 import { Radar } from './radar.js';
 import { WeatherSystem, weatherKind } from './weather.js';
+import { Tutorial } from './tutorial.js';
 import { t, pick, toggleLang, onLang } from './i18n.js';
 import { TouchControls, isTouch } from './touch.js';
 import { reportDiscovery, fetchFirstBy } from './online.js';
@@ -131,6 +132,7 @@ const radar = new Radar(
 );
 radar.sel = sysIdx;
 const touch = isTouch() ? new TouchControls(input) : null;
+const tutorial = new Tutorial(!!touch);
 hud.onDigit = (n) => input.just.add(`Digit${n}`);
 hud.onPanelClose = (key) => input.just.add(key);
 let ownedShips = ['star'];
@@ -331,8 +333,24 @@ titleEl.addEventListener('click', () => {
   hud.show();
   audio.ensure();
   hud.toast(`${t('toast.welcome')}, ${profile}`, `${system.name} — ${t('toast.throttleHint')}`);
+  // brand-new explorers get the 60-second first flight
+  let tutDone = false;
+  try { tutDone = !!localStorage.getItem(`infsky-tut-${profile}`); } catch { /* fine */ }
+  if (!tutDone && !jumpedIn) tutorial.start();
   lock();
 });
+
+function finishTutorial(skipped) {
+  try { localStorage.setItem(`infsky-tut-${profile}`, '1'); } catch { /* fine */ }
+  if (skipped) return;
+  if (!inventory.ownsVendor('goldcrown')) {
+    inventory.vendor.push('goldcrown');
+    inventory.save();
+  }
+  hud.toast(t('tut.done'), t('tut.reward'));
+  hud.celebrate();
+  audio.celebrate();
+}
 
 if (jumpedIn) {
   pnameEl.value = profile;
@@ -687,6 +705,19 @@ const loop = () => {
   else _vd.set(0, 0, -1).applyQuaternion(player.quat);
   warp.update(camera.position, _vd, st.speed, player.pulse.factor);
   starsRoot.position.copy(camera.position);
+
+  // ------- first-flight tutorial progress
+  if (started && (tutorial.active() || tutorial.skipped)) {
+    let mats = 0;
+    for (const k in inventory.counts) mats += inventory.counts[k];
+    const evt = tutorial.update({
+      speed: player.speed, atmoF, mode: player.mode,
+      fauna: discoveredFauna.size, mats,
+    });
+    if (evt === 'step') audio.blip(1200);
+    else if (evt === 'done') finishTutorial(false);
+    else if (evt === 'skip') finishTutorial(true);
+  }
 
   // ------- hud + audio
   if (started) {

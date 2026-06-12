@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>INFINITE SKY — Procedural Space Explorer</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./vendor/fonts.css">
 <style>
   :root{
     --ink:#d7ecff; --dim:#8fb4cf; --acc:#5ef2d6; --acc2:#7fc4ff;
@@ -138,6 +137,22 @@
   #outfit .piece.eq span{color:var(--acc)}
   #outfit .piece.locked{opacity:.45}
   #outfit .o-hint{margin-top:12px;font-size:11px;letter-spacing:2px;color:var(--dim)}
+
+  /* first-flight tutorial banner */
+  #tutorial{position:absolute;top:88px;left:50%;transform:translateX(-50%);width:560px;
+    max-width:92vw;padding:14px 22px;text-align:center;display:none;pointer-events:auto;cursor:pointer;
+    background:rgba(8,18,30,.72);border:1px solid var(--acc);backdrop-filter:blur(7px);
+    clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+    animation:tutglow 2.2s infinite}
+  #tutorial.on{display:block}
+  #tutorial .tu-head{font-family:'Orbitron';font-size:12px;letter-spacing:4px;color:var(--acc)}
+  #tutorial .tu-text{font-size:18px;font-weight:600;letter-spacing:2px;color:#fff;margin-top:6px}
+  #tutorial .tu-skip{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:6px}
+  @keyframes tutglow{0%,100%{box-shadow:0 0 10px rgba(94,242,214,.25)}50%{box-shadow:0 0 24px rgba(94,242,214,.6)}}
+  @media (max-width: 920px), (max-height: 560px){
+    #tutorial{top:64px;padding:8px 12px}
+    #tutorial .tu-text{font-size:13px;letter-spacing:1px}
+  }
 
   /* celebration confetti */
   #confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
@@ -355,8 +370,8 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      "three": "./vendor/three.module.min.js",
+      "three/addons/": "./vendor/addons/"
     }
   }
   </script>
