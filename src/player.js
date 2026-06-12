@@ -271,6 +271,7 @@ export class Player {
     if (this.throttle > 0.04 && this.pulse.factor < 0.5) {
       // exhaust density scales with boost and hard acceleration
       const burst = 1 + (this.boosting ? 1 : 0) + (this.accelSm > 130 ? 1 : 0);
+      const tc = this.ship.trailColor; // exhaust matches each ship's engine glow
       for (const n of this.ship.nozzles) {
         for (let b = 0; b < burst; b++) {
           _v1.copy(n).applyMatrix4(this.ship.inner.matrixWorld);
@@ -278,7 +279,7 @@ export class Player {
           _v2.x += (Math.random() - 0.5) * 5;
           _v2.y += (Math.random() - 0.5) * 5;
           _v2.z += (Math.random() - 0.5) * 5;
-          this.trail.spawn(_v1, _v2, 0.45, 0.8, 1.0, 0.4 + Math.random() * 0.3);
+          this.trail.spawn(_v1, _v2, tc.r, tc.g, tc.b, 0.4 + Math.random() * 0.3);
         }
       }
     }
@@ -293,6 +294,21 @@ export class Player {
         this.trail.spawn(_v1, _v2, 0.9, 0.95, 1.0, 0.2 + Math.random() * 0.12);
       }
     }
+    // ground dust / water spray when skimming low and fast
+    if (this.alt < 22 && this.speed > 70) {
+      const overWater = smp2.terrR < smp2.floorR - 0.01;
+      if (!overWater && !nearest.dustC) {
+        nearest.dustC = new THREE.Color(nearest.def.biome.ramp[0][0]);
+      }
+      _v1.copy(this.pos).addScaledVector(smp2.up, -this.alt + 0.6);
+      _v2.copy(this.vel).multiplyScalar(0.12).addScaledVector(smp2.up, 3.5);
+      _v2.x += (Math.random() - 0.5) * 9;
+      _v2.y += (Math.random() - 0.5) * 9;
+      _v2.z += (Math.random() - 0.5) * 9;
+      if (overWater) this.trail.spawn(_v1, _v2, 0.75, 0.88, 0.98, 0.35 + Math.random() * 0.25);
+      else this.trail.spawn(_v1, _v2, nearest.dustC.r, nearest.dustC.g, nearest.dustC.b, 0.4 + Math.random() * 0.3);
+    }
+
     // re-entry sparks when diving fast through an atmosphere
     if (atmoF > 0.15 && this.speed > 170) {
       _v1.set((Math.random() - 0.5) * 1.4, -0.25, -3.0).applyMatrix4(this.ship.inner.matrixWorld);

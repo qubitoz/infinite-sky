@@ -30,7 +30,15 @@ presumir* (mundos, criaturas, materiales, vestimentas y — a futuro — naves).
 
 ---
 
-## Fase 2 — Clima y naves especializadas
+> **Estado (2026-06-12):** Fases 2 y 4 (básica) COMPLETADAS — 16 biomas con 4
+> mundos de peligro climático, naves ESCARCHA/BRASA/BRUMA/PRISMA obtenibles en
+> naufragios, hangar, mercadillos con prendas exclusivas. Además: galaxia de 14
+> sistemas con hipersalto, 3 radares, UI bilingüe EN/ES, controles táctiles,
+> efectos cinematográficos (pulso, nave rediseñada, clima visual con
+> lluvia/nieve/ceniza/pétalos, estelas tintadas, polvo y spray) y PUBLICADO en
+> https://qubitoz.github.io/infinite-sky/. Pendientes señalados abajo.
+
+## Fase 2 — Clima y naves especializadas ✓ HECHA
 
 Sistema de **peligros climáticos** por bioma, pensado para niños (nunca daño:
 la nave "no quiere" entrar y rebota suavemente, o el visor se congela/empaña
@@ -51,7 +59,7 @@ como aviso):
 - **Hangar**: la nave activa se elige desde un panel (como el guardarropa);
   las naves son coleccionables y persisten por perfil.
 
-## Fase 3 — Recursos y minería suave
+## Fase 3 — Recursos y minería suave (SIGUIENTE GRAN FASE)
 
 - Láser recolector de mano (mantener clic): cristales minerales y frutas
   brillantes; alimenta un inventario simple sin límites.
@@ -77,12 +85,19 @@ como aviso):
 
 ## Mejoras técnicas continuas
 
-- Toggle de idioma ES/EN de toda la UI (prioridad alta para público infantil).
-- Controles táctiles / gamepad.
-- Clima activo visual (lluvia, nieve, ceniza como partículas) usando el campo
-  `weather` que ya existe por planeta.
-- Guardado en la nube por perfil (Supabase auth anónima) cuando exista la DB.
+- ~~Toggle de idioma ES/EN~~ ✓ HECHO (tecla X / botón, en vivo).
+- ~~Controles táctiles~~ ✓ HECHO · gamepad pendiente.
+- ~~Clima activo visual~~ ✓ HECHO (lluvia, ácido, nieve, ceniza, pétalos,
+  polvo, niebla — según el `weather` de cada planeta).
+- **Tutorial de 60 segundos para niños** (prioridad #1 para portales):
+  misiones guiadas la primera vez — "despega → entra a la atmósfera →
+  aterriza → escanea tu primera criatura → recoge 3 hojas" con flechas y
+  recompensa (prenda de regalo).
+- **Empaquetar three.js localmente** (sin CDN) — requisito de Poki/
+  CrazyGames y mejora la primera carga.
+- Guardado en la nube por perfil (Supabase, pendiente cuenta Qubitoz).
 - Modo foto (ocultar HUD + cámara libre) — a los niños les encanta.
+- Criaturas marinas para los mundos océano (nuevo arquetipo "nadador").
 
 ## Notas de diseño (no negociables)
 

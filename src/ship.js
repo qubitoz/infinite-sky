@@ -21,6 +21,7 @@ function buildInto(group, variantKey, out) {
   const inner = new THREE.Group();
   group.add(inner);
   out.inner = inner;
+  out.trailColor.set(v.glow);
 
   const hull = new THREE.MeshStandardMaterial({ color: v.hull, roughness: 0.45, metalness: 0.6, flatShading: true });
   const accent = new THREE.MeshStandardMaterial({ color: v.accent, roughness: 0.4, metalness: 0.55, flatShading: true });
@@ -139,6 +140,7 @@ export function makeShip(initialVariant = 'star') {
     gear: [],
     navs: [],
     gearVisible: false,
+    trailColor: new THREE.Color('#7fd4ff'),
     _phase: 0,
     get resist() { return (SHIPS[this.variantKey] || SHIPS.star).resist; },
     setThrust(f) {

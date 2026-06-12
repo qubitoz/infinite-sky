@@ -15,6 +15,7 @@ import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager } from './gear.
 import { SiteManager } from './sites.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
 import { Radar } from './radar.js';
+import { WeatherSystem, weatherKind } from './weather.js';
 import { t, pick, toggleLang, onLang } from './i18n.js';
 import { TouchControls, isTouch } from './touch.js';
 import { reportDiscovery, fetchFirstBy } from './online.js';
@@ -89,6 +90,7 @@ const ship = makeShip('star');
 scene.add(ship.group);
 const trail = new EngineTrail(scene);
 const warp = new WarpField(scene);
+const weather = new WeatherSystem(scene, QUAL.aa ? 1 : 0.65);
 
 const galaxy = makeGalaxy(galaxySeed);
 
@@ -523,6 +525,15 @@ const loop = () => {
     : 4e6;
   const starOp = clamp(1 - atmoF * (0.3 + bright * 1.2), 0, 1);
   for (const m of skyMats) m.opacity = starOp * m.userData.baseOp;
+  // subtle per-layer star twinkle
+  stars.mats.forEach((m, i) => {
+    m.opacity *= 0.88 + 0.12 * Math.sin(TIME.value * (0.7 + i * 0.45) + i * 2.1);
+  });
+
+  // visual weather inside atmospheres, driven by the planet's weather report
+  const wkind = atmoF > 0.3
+    ? weatherKind(nearest.def.biome, nearest.def.stats.weather.en) : null;
+  weather.update(dt, camera.position, smp.up, wkind, clamp((atmoF - 0.3) / 0.3, 0, 1));
   hemi.intensity = 0.14 + atmoF * 0.85 * (0.25 + 0.75 * bright);
   hemi.color.set(nearest.def.biome.sky);
   hemi.groundColor.set(nearest.def.biome.rock);
@@ -684,7 +695,7 @@ renderer.setAnimationLoop(loop);
 window.__game = {
   start: () => titleEl.click(), player, planets, camera, system, input, hud,
   creatureMgr, allSpecies, discoveredFauna, inventory, pickups, avatar,
-  radar, sites, galaxy, ship, hyperjump, get ownedShips() { return ownedShips; },
+  radar, sites, galaxy, ship, hyperjump, weather, get ownedShips() { return ownedShips; },
   step(n = 1, dt = 1 / 60) {
     FIXED_DT = dt;
     for (let i = 0; i < n; i++) loop();
