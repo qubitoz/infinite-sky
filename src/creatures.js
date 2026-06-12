@@ -16,9 +16,13 @@ const RARITY_WEIGHT = { common: 1, uncommon: 0.5, rare: 0.2 };
 export function buildSpeciesCatalog(planets) {
   const all = [];
   for (const p of planets) {
-    const count = p.def.biome.faunaCount || 0;
     const rand = mulberry32((p.def.seed ^ 0x00fa44a7) >>> 0);
-    const allowed = p.def.biome.faunaArchetypes || [];
+    // per-planet richness: fauna worlds can host up to 8 species, and rich
+    // ones unlock the rarer body plans (biped, serpent)
+    let count = p.def.biome.faunaCount || 0;
+    if (count > 0) count = Math.min(8, count + ((rand() * 4) | 0));
+    const allowed = [...(p.def.biome.faunaArchetypes || [])];
+    if (count >= 3) allowed.push('biped', 'serpent');
     p.species = [];
     for (let i = 0; i < count && allowed.length; i++) {
       const hue = rand();
@@ -142,6 +146,31 @@ const BUILDERS = {
       g.add(w);
     }
     part(g, G.box, M.accent, 0.4, 0.05, 0.5, 0, 0.7, 0.75, 'tail');
+  },
+  biped(g, M, es) {
+    // tall friendly bird: egg body on two long legs, crest, stubby wings
+    part(g, G.sphere, M.body, 0.6, 0.85, 0.55, 0, 1.9, 0, 'body');
+    part(g, G.sphere, M.belly, 0.45, 0.6, 0.42, 0, 1.75, -0.12);
+    eyePair(g, 0.2 * es, 0.26, 2.35, -0.42);
+    part(g, G.cone, M.accent, 0.12, 0.4, 0.12, 0, 2.25, -0.62, 'beak').rotation.x = -1.57;
+    part(g, G.cone, M.accent, 0.16, 0.5, 0.16, 0, 2.85, 0.05, 'earL').rotation.z = 0.15;
+    leg(g, M.body, 0.09, 1.5, -0.25, 1.5, 0, 'leg0');
+    leg(g, M.body, 0.09, 1.5, 0.25, 1.5, 0, 'leg1');
+    part(g, G.sphere, M.accent, 0.14, 0.4, 0.1, -0.62, 1.95, 0.1, 'wingL').rotation.z = 0.5;
+    part(g, G.sphere, M.accent, 0.14, 0.4, 0.1, 0.62, 1.95, 0.1, 'wingR').rotation.z = -0.5;
+    part(g, G.sphere, M.belly, 0.18, 0.18, 0.18, 0, 1.7, 0.55, 'tail');
+  },
+  serpent(g, M, es) {
+    // gentle noodle: head + shrinking segments resting on the ground
+    const head = part(g, G.sphere, M.body, 0.5, 0.45, 0.55, 0, 0.5, -1.4, 'head');
+    eyePair(head, 0.42 * es, 0.5, 0.35, -0.6);
+    part(head, G.cone, M.accent, 0.3, 0.7, 0.3, 0, 1.0, 0.1, 'earL');
+    let s = 0.45;
+    for (let i = 0; i < 5; i++) {
+      part(g, G.sphere, M.body, s, s * 0.9, s, 0, s * 0.85, -0.7 + i * 0.62, i === 4 ? 'tail' : '');
+      s *= 0.85;
+    }
+    part(g, G.sphere, M.belly, 0.34, 0.3, 0.4, 0, 0.42, -0.75);
   },
   crawler(g, M, es) {
     part(g, G.sphere, M.body, 0.95, 0.45, 1.25, 0, 0.62, 0, 'body');

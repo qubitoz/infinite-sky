@@ -13,7 +13,7 @@ const BIOME_DATA = [
   {"key": "volcanic", "labelEn": "VOLCANO WORLD", "labelEs": "MUNDO VOLCÁNICO", "atmo": "#f09a60", "sky": "#d86840", "strength": 1.2, "sea": {"level": 0.005, "deep": "#b03208", "shallow": "#ff9526", "lava": true}, "cloudDensity": 0.5, "cloudColor": "#b59488", "terrain": {"contFreq": 1.7, "contAmp": 0.012, "mtnFreq": 5.2, "mtnAmp": 0.026, "warp": 0.6, "detFreq": 20, "detAmp": 0.0028, "terrace": 0.15, "fold": false}, "ramp": [["#8a4030", 0.0], ["#6a3a30", 0.15], ["#54382f", 0.38], ["#473a35", 0.62], ["#5c4c42", 0.85]], "rock": "#4a3a36", "snow": null, "snowLine": null, "weatherEn": ["ASH PUFFS", "HEAT SHIMMER", "EMBER SPARKS", "RUMBLING GROUND"], "weatherEs": ["NUBES DE CENIZA", "ONDAS DE CALOR", "CHISPAS BRILLANTES", "SUELO RETUMBANTE"], "floraEn": "NONE", "floraEs": "NINGUNA", "faunaEn": "NONE", "faunaEs": "NINGUNA", "faunaCount": 0, "faunaArchetypes": [], "gravity": [10, 13], "temp": [60, 110], "kit": "spikes", "kitColors": {"a": "#3c3034", "b": "#6e3428", "c": "#ff8c3a"}, "hazard": "heat", "materials": ["obsidian", "mud"], "starter": false},
   {"key": "toxic", "labelEn": "TOXIC WORLD", "labelEs": "MUNDO TÓXICO", "atmo": "#cfe08a", "sky": "#94c84e", "strength": 1.1, "sea": {"level": 0.0058, "deep": "#4a6e2a", "shallow": "#86b03c", "lava": false}, "cloudDensity": 0.55, "cloudColor": "#d6e3a0", "terrain": {"contFreq": 1.8, "contAmp": 0.01, "mtnFreq": 4.4, "mtnAmp": 0.017, "warp": 0.7, "detFreq": 19, "detAmp": 0.0025, "terrace": 0, "fold": false}, "ramp": [["#7a9a3c", 0.0], ["#699040", 0.15], ["#5e7e4e", 0.38], ["#6e5a88", 0.6], ["#8a6aa8", 0.85]], "rock": "#6a5a80", "snow": null, "snowLine": null, "weatherEn": ["SPORE DRIFT", "GREEN MIST", "GLOWING DRIZZLE"], "weatherEs": ["LLUVIA DE ESPORAS", "NIEBLA VERDE", "LLOVIZNA LUMINOSA"], "floraEn": "FUNGAL", "floraEs": "FÚNGICA", "faunaEn": "PECULIAR", "faunaEs": "PECULIAR", "faunaCount": 3, "faunaArchetypes": ["blob", "crawler", "hopper"], "gravity": [7.5, 10], "temp": [8, 30], "kit": "shroom", "kitColors": {"a": "#9a5ec8", "b": "#d8cfa8", "c": "#d4f25a"}, "hazard": null, "materials": ["spore", "mud"], "starter": false},
   {"key": "exotic", "labelEn": "EXOTIC WORLD", "labelEs": "MUNDO EXÓTICO", "atmo": "#f0a0d8", "sky": "#d86ab8", "strength": 1.25, "sea": null, "cloudDensity": 0.15, "cloudColor": "#f4c8e8", "terrain": {"contFreq": 2.1, "contAmp": 0.013, "mtnFreq": 5.4, "mtnAmp": 0.024, "warp": 0.8, "detFreq": 22, "detAmp": 0.003, "terrace": 0.4, "fold": true}, "ramp": [["#36b8a8", 0.0], ["#55ccba", 0.18], ["#9fb4cf", 0.4], ["#c47ed0", 0.6], ["#e06cc4", 0.78], ["#f490de", 0.9]], "rock": "#7a6a9a", "snow": null, "snowLine": null, "weatherEn": ["FLOATING MOTES", "PRISM HAZE", "SILENT SHIMMER"], "weatherEs": ["MOTAS FLOTANTES", "BRUMA DE PRISMA", "DESTELLO SILENCIOSO"], "floraEn": "CRYSTALLINE", "floraEs": "CRISTALINA", "faunaEn": "NONE", "faunaEs": "NINGUNA", "faunaCount": 0, "faunaArchetypes": [], "gravity": [6, 8], "temp": [-10, 25], "kit": "crystal", "kitColors": {"a": "#e860c0", "b": "#2fc4b4", "c": "#f8e8ff"}, "hazard": null, "materials": ["crystal", "obsidian"], "starter": false},
-  {"key": "ocean", "labelEn": "OCEAN WORLD", "labelEs": "MUNDO OCEÁNICO", "atmo": "#98e0ec", "sky": "#48c0d8", "strength": 0.9, "sea": {"level": 0.009, "deep": "#0d5a9e", "shallow": "#35c8d0", "lava": false}, "cloudDensity": 0.4, "cloudColor": "#ffffff", "terrain": {"contFreq": 1.2, "contAmp": 0.008, "mtnFreq": 3.4, "mtnAmp": 0.013, "warp": 0.3, "detFreq": 14, "detAmp": 0.0017, "terrace": 0, "fold": false}, "ramp": [["#f8e0cc", 0.0], ["#f4cdab", 0.1], ["#8adcc4", 0.25], ["#4cc0ae", 0.5], ["#379a92", 0.75], ["#62a496", 0.9]], "rock": "#9a8f72", "snow": null, "snowLine": null, "weatherEn": ["SEA BREEZE", "SUNNY SKIES", "PASSING SHOWERS", "ROLLING WAVES"], "weatherEs": ["BRISA MARINA", "CIELOS SOLEADOS", "CHUBASCOS PASAJEROS", "OLAS SUAVES"], "floraEn": "TROPICAL", "floraEs": "TROPICAL", "faunaEn": "PLAYFUL", "faunaEs": "JUGUETONA", "faunaCount": 4, "faunaArchetypes": ["flyer", "hopper", "blob", "walker"], "gravity": [8.5, 10.5], "temp": [18, 32], "kit": "forest", "kitColors": {"a": "#3cb86a", "b": "#a8784a", "c": "#ffd166"}, "hazard": null, "materials": ["leaf", "flower", "mud"], "starter": true},
+  {"key": "ocean", "labelEn": "OCEAN WORLD", "labelEs": "MUNDO OCEÁNICO", "atmo": "#98e0ec", "sky": "#48c0d8", "strength": 0.9, "sea": {"level": 0.0068, "deep": "#0d5a9e", "shallow": "#35c8d0", "lava": false}, "cloudDensity": 0.4, "cloudColor": "#ffffff", "terrain": {"contFreq": 1.2, "contAmp": 0.0095, "mtnFreq": 3.4, "mtnAmp": 0.018, "warp": 0.3, "detFreq": 14, "detAmp": 0.0017, "terrace": 0, "fold": false}, "ramp": [["#f8e0cc", 0.0], ["#f4cdab", 0.1], ["#8adcc4", 0.25], ["#4cc0ae", 0.5], ["#379a92", 0.75], ["#62a496", 0.9]], "rock": "#9a8f72", "snow": null, "snowLine": null, "weatherEn": ["SEA BREEZE", "SUNNY SKIES", "PASSING SHOWERS", "ROLLING WAVES"], "weatherEs": ["BRISA MARINA", "CIELOS SOLEADOS", "CHUBASCOS PASAJEROS", "OLAS SUAVES"], "floraEn": "TROPICAL", "floraEs": "TROPICAL", "faunaEn": "PLAYFUL", "faunaEs": "JUGUETONA", "faunaCount": 4, "faunaArchetypes": ["flyer", "hopper", "blob", "walker"], "gravity": [8.5, 10.5], "temp": [18, 32], "kit": "forest", "kitColors": {"a": "#3cb86a", "b": "#a8784a", "c": "#ffd166"}, "hazard": null, "materials": ["leaf", "flower", "mud"], "starter": true},
   {"key": "candy", "labelEn": "CANDY WORLD", "labelEs": "MUNDO DE CARAMELO", "atmo": "#ffd2e8", "sky": "#f8a8d0", "strength": 0.85, "sea": {"level": 0.0055, "deep": "#c8508e", "shallow": "#ff9ed0", "lava": false}, "cloudDensity": 0.5, "cloudColor": "#fff0f8", "terrain": {"contFreq": 1.3, "contAmp": 0.009, "mtnFreq": 3.6, "mtnAmp": 0.014, "warp": 0.25, "detFreq": 13, "detAmp": 0.0016, "terrace": 0.3, "fold": false}, "ramp": [["#ffe3ee", 0.0], ["#ffc2dd", 0.15], ["#c8a2e8", 0.35], ["#9ed0f5", 0.55], ["#aaeccf", 0.75], ["#fff6c8", 0.9]], "rock": "#b8869e", "snow": "#fff8fc", "snowLine": 0.75, "weatherEn": ["SPRINKLE SHOWERS", "COTTON CLOUDS", "SWEET BREEZE"], "weatherEs": ["LLUVIA DE CHISPITAS", "NUBES DE ALGODÓN", "BRISA DULCE"], "floraEn": "SUGARY", "floraEs": "AZUCARADA", "faunaEn": "BOUNCY", "faunaEs": "SALTARINA", "faunaCount": 4, "faunaArchetypes": ["hopper", "blob", "flyer", "walker"], "gravity": [6.5, 8.5], "temp": [15, 26], "kit": "candy", "kitColors": {"a": "#ff85b8", "b": "#f8f0e8", "c": "#7adcf0"}, "hazard": null, "materials": ["flower", "branch"], "starter": true},
   {"key": "savanna", "labelEn": "SAVANNA WORLD", "labelEs": "MUNDO DE SABANA", "atmo": "#fbe0a8", "sky": "#f4c468", "strength": 0.95, "sea": {"level": 0.0042, "deep": "#3f6e62", "shallow": "#7ab890", "lava": false}, "cloudDensity": 0.25, "cloudColor": "#fdf2dc", "terrain": {"contFreq": 1.3, "contAmp": 0.009, "mtnFreq": 3.5, "mtnAmp": 0.014, "warp": 0.3, "detFreq": 14, "detAmp": 0.0016, "terrace": 0.1, "fold": false}, "ramp": [["#9ab05c", 0.0], ["#c2b052", 0.12], ["#d9b44e", 0.3], ["#c89a44", 0.55], ["#a87e3c", 0.78], ["#8a6a3a", 0.9]], "rock": "#9a7a4e", "snow": null, "snowLine": null, "weatherEn": ["GOLDEN SUN", "WARM WINDS", "DISTANT THUNDER"], "weatherEs": ["SOL DORADO", "VIENTOS CÁLIDOS", "TRUENOS LEJANOS"], "floraEn": "GOLDEN GRASSES", "floraEs": "PASTOS DORADOS", "faunaEn": "GENTLE GIANTS", "faunaEs": "GIGANTES AMABLES", "faunaCount": 5, "faunaArchetypes": ["longneck", "walker", "hopper", "flyer"], "gravity": [9, 11], "temp": [20, 38], "kit": "forest", "kitColors": {"a": "#7a9e3e", "b": "#8a6a42", "c": "#e8c85a"}, "hazard": null, "materials": ["branch", "bone", "mud"], "starter": true},
   {"key": "fungal", "labelEn": "FUNGAL WORLD", "labelEs": "MUNDO DE HONGOS", "atmo": "#b2a2e2", "sky": "#8a7ad0", "strength": 1.05, "sea": {"level": 0.005, "deep": "#28486e", "shallow": "#4a88a0", "lava": false}, "cloudDensity": 0.45, "cloudColor": "#c2b2dc", "terrain": {"contFreq": 1.6, "contAmp": 0.01, "mtnFreq": 4, "mtnAmp": 0.016, "warp": 0.55, "detFreq": 16, "detAmp": 0.0021, "terrace": 0, "fold": false}, "ramp": [["#6a5468", 0.0], ["#7a5e72", 0.15], ["#8c6a80", 0.38], ["#9a7898", 0.6], ["#b292b8", 0.85]], "rock": "#6e6080", "snow": null, "snowLine": null, "weatherEn": ["SPORE GLOW", "MISTY HOLLOWS", "SOFT DRIZZLE"], "weatherEs": ["BRILLO DE ESPORAS", "VALLES BRUMOSOS", "LLOVIZNA TRANQUILA"], "floraEn": "TOWERING", "floraEs": "GIGANTESCA", "faunaEn": "GLOWING", "faunaEs": "LUMINOSA", "faunaCount": 3, "faunaArchetypes": ["crawler", "blob", "hopper"], "gravity": [7, 9.5], "temp": [5, 18], "kit": "shroom", "kitColors": {"a": "#ff9a4a", "b": "#e8d8b8", "c": "#6ae8d8"}, "hazard": null, "materials": ["spore", "mud"], "starter": false},
@@ -65,6 +65,14 @@ const STAR_CLASSES = [
   { color: '#dfeaff', glow: '#9fc2ff', core: '#ffffff' }, // F
 ];
 
+// subtle per-planet color identity: each world tints its biome sky/atmo
+function hexLerp(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = (sh) => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
+}
+const TINTS = ['#ffffff', '#ffd9a0', '#a0c8ff', '#ffb0d0', '#c8ffd0'];
+
 // kid-friendly sentinel moods
 const SENTINELS = [
   { en: 'SLEEPY', es: 'DORMILONES' },
@@ -93,7 +101,7 @@ export function makeSystem(seed) {
     const j = (rand() * (i + 1)) | 0;
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  const count = 5 + ((rand() * 3.4) | 0); // 5-8 planets
+  const count = 6 + ((rand() * 5.9) | 0); // 6-11 planets, outer ones far out
   const order = [starters[(rand() * starters.length) | 0]];
   let hazards = 0;
   for (const k of pool) {
@@ -109,16 +117,20 @@ export function makeSystem(seed) {
   for (let i = 0; i < order.length; i++) {
     const biome = BIOMES[order[i]];
     const ang = rand() * Math.PI * 2;
-    const radius = 1300 + rand() * 1300;
+    const radius = 1100 + rand() * 2100;
     const y = (rand() - 0.5) * orbit * 0.16;
+    const tint = TINTS[(rand() * TINTS.length) | 0];
+    const tintK = rand() * 0.18;
     planets.push({
       id: i,
       seed: (seed ^ (i * 0x9e3779b9)) >>> 0,
       name: planetName(rand).toUpperCase(),
       biome,
       radius,
+      sky: hexLerp(biome.sky, tint, tintK),
+      atmo: hexLerp(biome.atmo, tint, tintK),
       position: [Math.cos(ang) * orbit, y, Math.sin(ang) * orbit],
-      hasRings: rand() < 0.32,
+      hasRings: rand() < 0.4,
       ringTint: rand() < 0.5 ? '#cfc4ae' : '#aebfd2',
       cloudSpin: (rand() * 0.5 + 0.5) * (rand() < 0.5 ? -1 : 1) * 0.004,
       stats: {
@@ -135,8 +147,21 @@ export function makeSystem(seed) {
   const r1 = Math.hypot(planets[beltIdx].position[0], planets[beltIdx].position[2]);
   const r2 = Math.hypot(planets[beltIdx + 1].position[0], planets[beltIdx + 1].position[2]);
 
+  // ~30% of systems are binaries: a smaller companion star inside the
+  // innermost orbit — pure spectacle, lighting still radiates from the pair
+  let binary = null;
+  if (rand() < 0.3) {
+    const a = rand() * Math.PI * 2;
+    binary = {
+      x: Math.cos(a) * 11500,
+      z: Math.sin(a) * 11500,
+      radius: 3000 + rand() * 1600,
+      star: STAR_CLASSES[(rand() * STAR_CLASSES.length) | 0],
+    };
+  }
+
   return {
-    seed, name, star, planets,
+    seed, name, star, planets, binary,
     belt: { radius: (r1 + r2) / 2, width: (r2 - r1) * 0.16, height: (r1 + r2) * 0.012 },
     sunRadius: 7000,
   };

@@ -80,6 +80,7 @@ export class Player {
     this.orbitAng = 0;
     this.speed = 0;
     this.alt = 0;
+    this.onLanded = null; // main hooks this to log touchdowns + open the radar
   }
 
   spawn(pos, lookAt) {
@@ -387,6 +388,7 @@ export class Player {
       this.hud.toast(t('toast.landed'), nearest.def.name);
       this.audio.land();
       this.orbitAng = 0;
+      this.onLanded?.(nearest);
     }
     this.updateChaseCam(dt, nearest);
   }

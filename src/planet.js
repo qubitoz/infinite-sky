@@ -243,7 +243,7 @@ export class Planet {
       this.clouds.rotation.z = (this.rand() - 0.5) * 0.6;
       this.group.add(this.clouds);
     }
-    this.atmoMat = makeAtmosphereMaterial(biome.atmo, biome.strength);
+    this.atmoMat = makeAtmosphereMaterial(this.def.atmo || biome.atmo, biome.strength);
     this.atmoMat.uniforms.uSunDir.value.copy(this.sunDir);
     const atmo = new THREE.Mesh(new THREE.SphereGeometry(this.R * 1.2, 48, 32), this.atmoMat);
     atmo.renderOrder = 4;

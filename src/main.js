@@ -93,7 +93,7 @@ const trail = new EngineTrail(scene);
 const warp = new WarpField(scene);
 const weather = new WeatherSystem(scene, QUAL.aa ? 1 : 0.65);
 
-const galaxy = makeGalaxy(galaxySeed);
+const galaxy = makeGalaxy(galaxySeed, 18);
 
 const hud = new HUD(camera);
 const audio = new AudioSys();
@@ -136,6 +136,18 @@ hud.onPanelClose = (key) => input.just.add(key);
 let ownedShips = ['star'];
 let visited = new Set([sysIdx]);
 let vendorPieceOpen = null;
+let landedSet = new Set();
+const saveLanded = () => {
+  try { localStorage.setItem(`infsky-landed-${profile}-${seed}`, JSON.stringify([...landedSet])); } catch { /* fine */ }
+};
+// touchdown: log it for the system chart and pop the live planet radar
+player.onLanded = (planet) => {
+  if (!landedSet.has(planet.def.id)) {
+    landedSet.add(planet.def.id);
+    saveLanded();
+  }
+  radar.force('planet');
+};
 
 // landing beacon: pillar of light over the parked ship while on foot
 const beam = new THREE.Mesh(
@@ -211,6 +223,9 @@ function loadSaves() {
     visited.add(sysIdx);
     localStorage.setItem(vKey, JSON.stringify([...visited]));
   } catch { visited = new Set([sysIdx]); }
+  try {
+    landedSet = new Set(JSON.parse(localStorage.getItem(`infsky-landed-${profile}-${seed}`) || '[]'));
+  } catch { landedSet = new Set(); }
   hud.setWorlds(discoveredCount(), planets.length);
   hud.setSpecies(discoveredFauna.size, allSpecies.length);
   fetchFirstBy(seed).then((m) => { firstBy = m; });
@@ -399,7 +414,8 @@ const loop = () => {
     if (input.pressed('KeyO')) hud.toggleOutfit(inventory);
     if (input.pressed('KeyG')) hud.toggleHangar(ownedShips, ship.variantKey, inventory, paintsState());
     if (input.pressed('KeyM')) {
-      radar.cycle(best < nearest.R * 0.6 || player.mode !== 'fly');
+      const onSurface = player.mode !== 'fly';
+      radar.cycle(onSurface ? 'surface' : best < nearest.R * 0.6 ? 'near' : 'space');
     }
     if (radar.mode === 'galaxy') {
       if (input.pressed('ArrowLeft')) radar.sel = (radar.sel + galaxy.length - 1) % galaxy.length;
@@ -543,6 +559,11 @@ const loop = () => {
   mining.update(dt, started ? player.bodyPos() : camera.position, nearest,
     started && player.mode === 'walk');
 
+  // visibility logic: on the surface only the local radar exists
+  const onSurface = started && player.mode !== 'fly';
+  if (onSurface && (radar.mode === 'system' || radar.mode === 'galaxy')) radar.force('planet');
+  if (radar.mode === 'planet' && started && player.mode === 'fly' && best > nearest.R * 0.8) radar.off();
+
   // on foot: pieces and materials collect by proximity; gems need the laser
   if (started && player.mode === 'walk' && input.locked) {
     const body = player.bodyPos();
@@ -550,6 +571,13 @@ const loop = () => {
     if (part) collectPartItem(nearest, part);
     const it = pickups.nearestWithin(body, 3.5);
     if (it) collectPickupItem(it);
+    if (sites.ruinNear(nearest, body, 8)) {
+      sites.claimRuin(nearest);
+      for (let i = 0; i < 3; i++) inventory.add('gem');
+      hud.toast(t('toast.ruins'), `+3 ${pick(MATERIALS.gem.name)}`);
+      hud.celebrate();
+      audio.jingle();
+    }
 
     let lasering = false;
     if (input.key('KeyE') || input.mouseDown) {
@@ -604,7 +632,7 @@ const loop = () => {
   const atmoF = clamp(1 - (smp.len - nearest.R) / nearest.atmoH, 0, 1);
   const sunDot = smp.up.dot(nearest.sunDir);
   const bright = 0.05 + 0.95 * clamp(sunDot + 0.25, 0, 1);
-  _skyCol.set(nearest.def.biome.sky).multiplyScalar(bright);
+  _skyCol.set(nearest.def.sky || nearest.def.biome.sky).multiplyScalar(bright);
   _fogCol.copy(SPACE_COL).lerp(_skyCol, Math.pow(atmoF, 1.4));
   scene.fog.color.copy(_fogCol);
   renderer.setClearColor(_fogCol);
@@ -623,7 +651,7 @@ const loop = () => {
     ? weatherKind(nearest.def.biome, nearest.def.stats.weather.en) : null;
   weather.update(dt, camera.position, smp.up, wkind, clamp((atmoF - 0.3) / 0.3, 0, 1));
   hemi.intensity = 0.14 + atmoF * 0.85 * (0.25 + 0.75 * bright);
-  hemi.color.set(nearest.def.biome.sky);
+  hemi.color.set(nearest.def.sky || nearest.def.biome.sky);
   hemi.groundColor.set(nearest.def.biome.rock);
 
   sun.update(camera.position);
@@ -664,14 +692,17 @@ const loop = () => {
   if (started) {
     const markers = [];
     const shortLabel = (b) => pick(b.label).replace(' WORLD', '').replace('MUNDO ', '');
-    for (const p of planets) {
-      if (p === nearest && best < p.R * 1.2) continue;
-      markers.push({
-        name: p.def.name, sub: shortLabel(p.def.biome),
-        pos: p.center, kind: 'planet', discovered: p.discovered,
-      });
+    // planet/star markers clutter the surface view — space flight only
+    if (!onSurface && atmoF < 0.35) {
+      for (const p of planets) {
+        if (p === nearest && best < p.R * 1.2) continue;
+        markers.push({
+          name: p.def.name, sub: shortLabel(p.def.biome),
+          pos: p.center, kind: 'planet', discovered: p.discovered,
+        });
+      }
+      markers.push({ name: system.name, sub: t('mk.star'), pos: SUN_POS, kind: 'star', discovered: true });
     }
-    markers.push({ name: system.name, sub: t('mk.star'), pos: SUN_POS, kind: 'star', discovered: true });
     if (player.mode === 'walk') {
       markers.push({
         name: t('mk.ship'), sub: t('mk.board'), pos: player.pos,
@@ -719,8 +750,11 @@ const loop = () => {
         let maxOrbit = 1;
         const ps = planets.map((p) => {
           maxOrbit = Math.max(maxOrbit, Math.hypot(p.center.x, p.center.z));
+          const sp = p.species || [];
+          const complete = sp.length > 0 && sp.every((s) => discoveredFauna.has(s.id));
           return {
-            x: p.center.x, z: p.center.z, col: p.def.biome.sky, disc: p.discovered,
+            x: p.center.x, z: p.center.z, col: p.def.sky || p.def.biome.sky,
+            state: complete ? 3 : landedSet.has(p.def.id) ? 2 : p.discovered ? 1 : 0,
             name: p.def.name.split(' ')[0], hazard: !!p.def.biome.hazard,
           };
         });

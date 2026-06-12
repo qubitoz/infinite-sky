@@ -20,18 +20,29 @@ export class Radar {
     this.sweep = 0;
   }
 
-  cycle(onPlanet) {
-    const order = onPlanet ? ['planet', 'system', 'galaxy', 'off'] : ['system', 'galaxy', 'off'];
-    this.mode = order[(order.indexOf(this.mode) + 1) % order.length];
-    this.wrap.classList.toggle('on', this.mode !== 'off');
-    this.wrap.classList.toggle('galaxy', this.mode === 'galaxy');
+  // context decides which radars even exist: on a planet's surface only the
+  // local radar makes sense; in deep space only system/galaxy charts do
+  cycle(ctx) {
+    const order = ctx === 'surface' ? ['planet', 'off']
+      : ctx === 'near' ? ['planet', 'system', 'galaxy', 'off']
+        : ['system', 'galaxy', 'off'];
+    const i = order.indexOf(this.mode);
+    this.force(order[(i + 1) % order.length]);
   }
 
-  off() { this.mode = 'off'; this.wrap.classList.remove('on', 'galaxy'); }
+  force(mode) {
+    this.mode = mode;
+    this.wrap.classList.toggle('on', mode !== 'off');
+    this.wrap.classList.toggle('galaxy', mode === 'galaxy');
+  }
+
+  off() { this.force('off'); }
 
   _frame(title) {
     const c = this.ctx;
     c.clearRect(0, 0, SZ, SZ);
+    c.fillStyle = 'rgba(4,12,22,.8)'; // readable over starfields
+    c.fillRect(0, 0, SZ, SZ);
     c.strokeStyle = 'rgba(120,190,240,.25)';
     c.fillStyle = 'rgba(140,210,255,.06)';
     const m = SZ / 2;
@@ -86,6 +97,7 @@ export class Radar {
       else if (e.kind === 'wreck') { this.dot(px, py, 5, '#ff8a4a', true); this.dot(px, py, 2, '#ff8a4a'); }
       else if (e.kind === 'vendor') this.dot(px, py, 4, '#ff7ab8');
       else if (e.kind === 'ore') { this.dot(px, py, 3, '#ffd34d'); this.dot(px, py, 6, '#ffd34d', true); }
+      else if (e.kind === 'ruin') { this.dot(px, py, 4, '#9fe8d8', true); this.dot(px, py, 1.5, '#9fe8d8'); }
       else if (e.kind === 'ship') this.tri(px, py, Math.atan2(x, -y), '#7fd4ff', 6);
     }
     this.tri(m, m, 0, '#ffffff', 5); // you, facing up
@@ -111,10 +123,15 @@ export class Radar {
       const px = m + p.x * k, py = m + p.z * k;
       c.strokeStyle = 'rgba(140,200,255,.15)';
       c.beginPath(); c.arc(m, m, Math.hypot(p.x, p.z) * k, 0, Math.PI * 2); c.stroke();
-      this.dot(px, py, 4, p.col, !p.disc);
-      if (p.hazard) this.dot(px, py, 7, '#ff8a4a', true);
+      // progress states: 0 unknown · 1 discovered · 2 landed · 3 fauna complete
+      if (p.state === 0) this.dot(px, py, 4, '#9fb9cf', true);
+      else {
+        this.dot(px, py, 4, p.col);
+        if (p.state >= 2) this.dot(px, py, 7, p.state === 3 ? '#ffd34d' : '#5ef2d6', true);
+      }
+      if (p.hazard) this.dot(px, py, p.state >= 2 ? 9.5 : 7, '#ff8a4a', true);
       c.fillStyle = 'rgba(215,236,255,.85)';
-      c.fillText(p.name, px + 7, py + 3);
+      c.fillText(p.name, px + 8, py + 3);
     }
     this.tri(m + d.ship.x * k, m + d.ship.z * k, d.ship.heading, '#ffffff', 5);
     this.cap.textContent = `${d.sysName}`;

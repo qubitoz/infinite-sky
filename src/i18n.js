@@ -110,6 +110,8 @@ const DICT = {
   'mk.trade': { en: 'T · TRADE', es: 'T · INTERCAMBIAR' },
   'mk.ore': { en: 'GEM VEIN', es: 'VETA DE GEMAS' },
   'mk.mine': { en: 'HOLD E · MINE', es: 'MANTÉN E · MINAR' },
+  'mk.ruin': { en: 'ANCIENT RUINS', es: 'RUINAS ANTIGUAS' },
+  'toast.ruins': { en: 'ANCIENT CACHE FOUND!', es: '¡TESORO ANTIGUO ENCONTRADO!' },
   // ---- toasts
   'toast.welcome': { en: 'WELCOME', es: 'BIENVENIDO' },
   'toast.throttleHint': { en: 'HOLD W TO OPEN THROTTLE', es: 'MANTÉN W PARA ACELERAR' },

@@ -72,13 +72,16 @@ export class SiteManager {
       if ((planet.def.biome.faunaCount || 0) > 0 && rand() < 0.5) {
         vendor = { dir: randomUnit(rand, new THREE.Vector3()), piece: vendorPieceFor(planet.def.biome.kit, rand) };
       }
-      this.defs.set(pid, { wreck, vendor });
+      let ruin = null;
+      if (rand() < 0.45) ruin = { dir: randomUnit(rand, new THREE.Vector3()) };
+      this.defs.set(pid, { wreck, vendor, ruin });
     }
     return this.defs.get(pid);
   }
 
   prog(pid) {
     if (!this.progress[pid]) this.progress[pid] = { parts: [false, false, false], repaired: false };
+    if (this.progress[pid].ruin === undefined) this.progress[pid].ruin = false;
     return this.progress[pid];
   }
 
@@ -169,6 +172,34 @@ export class SiteManager {
       group.add(vg);
     }
 
+    if (d.ruin) {
+      const r = surfacePoint(planet, d.ruin.dir);
+      anchors.ruin = r;
+      const rg = new THREE.Group();
+      const stone = new THREE.MeshStandardMaterial({ color: '#8a8f96', roughness: 0.9, flatShading: true });
+      const glowM = new THREE.MeshStandardMaterial({
+        color: '#9fe8d8', emissive: '#3fd2a8', emissiveIntensity: 0.6, roughness: 0.3,
+      });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const pil = mkMesh(rg, new THREE.BoxGeometry(0.8, 3 + (i % 2), 0.8), stone,
+          Math.cos(a) * 4.2, 1.5, Math.sin(a) * 4.2, 0, a, 0);
+        pil.rotation.x = (i % 2 ? 1 : -1) * 0.06;
+      }
+      mkMesh(rg, new THREE.BoxGeometry(1.1, 4.4, 1.1), stone, 0, 2.2, 0, 0, 0.5, 0);
+      mkMesh(rg, new THREE.OctahedronGeometry(0.55, 0), glowM, 0, 4.9, 0);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: this.glowTex, color: '#9fe8d8', transparent: true, opacity: 0.45,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      halo.scale.set(8, 8, 1);
+      halo.position.y = 4.5;
+      rg.add(halo);
+      rg.position.copy(r.pos);
+      rg.quaternion.setFromUnitVectors(_Y, r.up);
+      group.add(rg);
+    }
+
     this.scene.add(group);
     this.built = { planet, group, anchors };
   }
@@ -192,7 +223,21 @@ export class SiteManager {
     if (a.wreck && !pr.repaired) out.push({ pos: a.wreck.pos, kind: 'wreck' });
     for (const p of a.parts) if (p) out.push({ pos: p.pos, kind: 'part' });
     if (a.vendor) out.push({ pos: a.vendor.pos, kind: 'vendor' });
+    if (a.ruin && !pr.ruin) out.push({ pos: a.ruin.pos, kind: 'ruin' });
     return out;
+  }
+
+  // unclaimed ruin within range → claim it (first visit treasure)
+  ruinNear(planet, pos, range) {
+    if (!this.built || this.built.planet !== planet) return false;
+    const a = this.built.anchors;
+    if (!a.ruin || this.prog(planet.def.id).ruin) return false;
+    return a.ruin.pos.distanceTo(pos) < range;
+  }
+
+  claimRuin(planet) {
+    this.prog(planet.def.id).ruin = true;
+    this.save();
   }
 
   nearestPart(planet, pos, range) {

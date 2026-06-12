@@ -100,30 +100,43 @@ export function makeNebulae(rand) {
 
 export function makeSun(system) {
   const group = new THREE.Group();
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(system.sunRadius, 48, 32),
-    makeSunMaterial(system.star.core, system.star.color),
-  );
-  group.add(mesh);
-  const glows = [];
-  for (const [scaleK, op] of [[0.30, 0.55], [0.14, 0.85]]) {
-    const mat = new THREE.SpriteMaterial({
-      map: getGlow(), color: system.star.glow, transparent: true, opacity: op,
-      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-    });
-    const sp = new THREE.Sprite(mat);
-    sp.frustumCulled = false;
-    sp.renderOrder = 5;
-    group.add(sp);
-    glows.push({ sp, scaleK });
+  const suns = [];
+  const addSun = (star, radius, pos) => {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 48, 32),
+      makeSunMaterial(star.core, star.color),
+    );
+    mesh.position.copy(pos);
+    group.add(mesh);
+    const glows = [];
+    for (const [scaleK, op] of [[0.30, 0.55], [0.14, 0.85]]) {
+      const mat = new THREE.SpriteMaterial({
+        map: getGlow(), color: star.glow, transparent: true, opacity: op,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.position.copy(pos);
+      sp.frustumCulled = false;
+      sp.renderOrder = 5;
+      group.add(sp);
+      glows.push({ sp, scaleK: scaleK * (radius / system.sunRadius) });
+    }
+    suns.push({ pos: pos.clone(), glows });
+  };
+  addSun(system.star, system.sunRadius, new THREE.Vector3(0, 0, 0));
+  if (system.binary) {
+    addSun(system.binary.star, system.binary.radius,
+      new THREE.Vector3(system.binary.x, 0, system.binary.z));
   }
   return {
     group,
     update(camPos) {
-      const d = camPos.length();
-      for (const g of glows) {
-        const s = d * g.scaleK;
-        g.sp.scale.set(s, s, 1);
+      for (const sun of suns) {
+        const d = camPos.distanceTo(sun.pos);
+        for (const g of sun.glows) {
+          const s = d * g.scaleK;
+          g.sp.scale.set(s, s, 1);
+        }
       }
     },
   };
