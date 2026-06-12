@@ -184,8 +184,9 @@ const _q = new THREE.Quaternion();
 const _fwd = new THREE.Vector3();
 
 export class CreatureManager {
-  constructor(scene) {
+  constructor(scene, popCap = 12) {
     this.scene = scene;
+    this.popCap = popCap;
     this.alive = [];
     this.spawnTimer = 0;
   }
@@ -200,7 +201,7 @@ export class CreatureManager {
       }
     }
     if (active && planet.species && planet.species.length) {
-      const target = Math.min(12, planet.species.length * 2 + 3);
+      const target = Math.min(this.popCap, planet.species.length * 2 + 3);
       this.spawnTimer -= dt;
       if (this.alive.length < target && this.spawnTimer <= 0) {
         this.spawnTimer = 0.35;

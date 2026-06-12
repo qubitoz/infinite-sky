@@ -28,13 +28,19 @@ const galaxySeed = ((parseInt(params.get('g'), 10)
   || ((Math.random() * 1e9) | 0)) >>> 0) || 1;
 const sysIdx = Math.max(0, parseInt(params.get('s'), 10) || 0);
 const seed = systemSeedFor(galaxySeed, sysIdx);
-const QUAL = params.get('q') === 'low'
-  ? { res: 13, pr: 1, budget: 5, stars: 4500, asteroids: 350 }
-  : { res: 17, pr: 2, budget: 6, stars: 9000, asteroids: 800 };
+// quality: phones/tablets default to "low" (override with ?q=high) — the big
+// mobile GPU costs are pixel ratio and MSAA, so both drop on touch devices
+const qParam = params.get('q');
+const autoLow = isTouch() && qParam !== 'high';
+const QUAL = (qParam === 'low' || autoLow)
+  ? { res: 13, pr: 1.5, budget: 5, stars: 4500, asteroids: 350, pop: 8, aa: false }
+  : { res: 17, pr: 2, budget: 6, stars: 9000, asteroids: 800, pop: 12, aa: true };
 
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+  renderer = new THREE.WebGLRenderer({
+    antialias: QUAL.aa, logarithmicDepthBuffer: true, powerPreference: 'high-performance',
+  });
 } catch (e) {
   const err = document.getElementById('err');
   err.style.display = 'flex';
@@ -146,7 +152,7 @@ const saveDiscoveries = () => {
 
 // fauna: species are deterministic per seed; discovery progress is per-player
 const allSpecies = buildSpeciesCatalog(planets);
-const creatureMgr = new CreatureManager(scene);
+const creatureMgr = new CreatureManager(scene, QUAL.pop);
 let faunaKey = `infsky-fauna-${seed}`;
 const discoveredFauna = new Set();
 const saveFauna = () => {
@@ -253,6 +259,7 @@ titleEl.addEventListener('click', () => {
   try { localStorage.setItem('infsky-lastname', profile); } catch { /* fine */ }
   loadSaves();
   titleEl.classList.add('off');
+  document.body.classList.add('playing');
   hud.show();
   audio.ensure();
   hud.toast(`${t('toast.welcome')}, ${profile}`, `${system.name} — ${t('toast.throttleHint')}`);
@@ -303,6 +310,15 @@ const _vd = new THREE.Vector3();
 let lastAtmoPlanet = null;
 let callTimer = 3;
 const clock = new THREE.Clock();
+
+// lightweight fps meter (?fps=1) so testers can report real device numbers
+let fpsEl = null, fpsFrames = 0, fpsClock = 0, fpsLast = performance.now();
+if (params.has('fps')) {
+  fpsEl = document.createElement('div');
+  fpsEl.id = 'fps';
+  fpsEl.textContent = '— FPS';
+  document.body.appendChild(fpsEl);
+}
 
 let FIXED_DT = null;
 const loop = () => {
@@ -639,6 +655,18 @@ const loop = () => {
 
   input.endFrame();
   renderer.render(scene, camera);
+
+  if (fpsEl) {
+    const now = performance.now();
+    fpsFrames++;
+    fpsClock += now - fpsLast;
+    fpsLast = now;
+    if (fpsClock >= 500) {
+      fpsEl.textContent = `${Math.round((fpsFrames * 1000) / fpsClock)} FPS · ${QUAL.aa ? 'HQ' : 'LQ'}`;
+      fpsFrames = 0;
+      fpsClock = 0;
+    }
+  }
 };
 renderer.setAnimationLoop(loop);
 

@@ -43,8 +43,9 @@
   #pcard.on{display:block}
   #pcard .pc-name{font-family:'Orbitron';font-size:21px;letter-spacing:3px;color:#fff}
   #pcard .pc-type{font-size:13px;letter-spacing:4px;color:var(--acc);margin:2px 0 10px}
-  #pcard .row{display:flex;justify-content:space-between;font-size:14px;letter-spacing:1.5px;
+  #pcard .row{display:flex;justify-content:space-between;gap:10px;font-size:14px;letter-spacing:1.5px;
     border-top:1px solid rgba(170,220,255,.12);padding:4px 0}
+  #pcard .row span{text-align:right}
   #pcard .row b{color:var(--dim);font-weight:600}
   #pcard .pc-hint{margin-top:10px;font-size:12px;letter-spacing:2px;color:var(--dim)}
   #pcard .pc-disc{font-size:11px;letter-spacing:3px;color:var(--acc);margin-top:6px}
@@ -177,6 +178,10 @@
     color:var(--acc);font-family:'Rajdhani';font-weight:700;font-size:15px;touch-action:none}
   #catalog,#outfit,#hangar,#trade{pointer-events:auto;cursor:pointer}
 
+  /* fps meter (?fps=1) */
+  #fps{position:fixed;top:8px;left:8px;z-index:30;color:#8aff9f;
+    font:700 12px Rajdhani;letter-spacing:2px;background:rgba(0,0,0,.45);padding:3px 8px}
+
   /* language button */
   #langbtn{position:fixed;top:20px;right:24px;z-index:12;font-size:13px;letter-spacing:3px;color:var(--ink);
     padding:8px 18px;border:1px solid var(--line);cursor:pointer;background:rgba(8,20,32,.6);
@@ -191,6 +196,52 @@
     outline:none;text-transform:uppercase;text-align:center;
     clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
   .profrow input:focus{border-color:var(--acc)}
+
+  /* ---------- compact layout for phones / short windows ---------- */
+  @media (max-width: 920px), (max-height: 560px) {
+    #topbar{top:6px}
+    #sysname{font-size:10px;letter-spacing:3px}
+    #worlds{font-size:9.5px;letter-spacing:2px}
+    #species{font-size:9px;letter-spacing:2px}
+    #toasts{width:92vw;top:52px}
+    .toast{padding:6px 14px}
+    .toast .t-main{font-size:13px;letter-spacing:2px}
+    .toast .t-sub{font-size:10px;letter-spacing:2px}
+    #pcard{left:8px;top:50px;width:204px;padding:9px 11px}
+    #pcard .pc-name{font-size:15px;letter-spacing:2px}
+    #pcard .pc-type{font-size:10px;letter-spacing:2px;margin:1px 0 5px}
+    #pcard .row{font-size:10.5px;padding:2px 0}
+    #pcard .pc-disc{font-size:9px;letter-spacing:2px;margin-top:4px}
+    #pcard .pc-hint{display:none}
+    #telemetry{right:8px;top:42px;bottom:auto;width:156px;padding:8px 10px}
+    #speed{font-size:18px}
+    #altline{font-size:10px;margin:2px 0 6px}
+    .bar label{font-size:8.5px;letter-spacing:2px}
+    #langbtn{top:6px;right:8px;font-size:10px;padding:5px 10px;letter-spacing:2px}
+    body.touch.playing #langbtn{display:none}
+    #hint{font-size:10px;max-width:60vw;bottom:8px;left:8px;line-height:1.7}
+    #help,#catalog,#outfit,#hangar,#trade{width:min(94vw,560px);max-height:84vh;padding:12px 14px}
+    .sp-card{width:124px;padding:5px 7px}
+    #radarwrap{padding:8px}
+    #radar{width:170px;height:170px}
+    #radarcap{font-size:9px;max-width:170px;margin-top:4px;letter-spacing:1px}
+    body.touch #radarwrap{left:50%;right:auto;bottom:8px;transform:translateX(-50%)}
+    body.touch #telemetry{right:8px;top:42px;bottom:auto;width:156px}
+    body.touch #joy{left:10px;bottom:10px;width:106px;height:106px}
+    #joynub{width:46px;height:46px;margin:-23px 0 0 -23px}
+    body.touch #tbtns{right:8px;bottom:10px;grid-template-columns:repeat(2,62px);gap:7px}
+    body.touch #tbtns button{height:40px;font-size:9.5px;border-radius:10px;letter-spacing:0.5px}
+    #radbtns{margin-top:5px;gap:6px}
+    #radbtns button{height:34px;font-size:12px}
+    /* title screen */
+    #title h1{font-size:34px;letter-spacing:10px;margin-left:10px}
+    #title h2{font-size:11px;letter-spacing:5px}
+    #title .seedline{font-size:9px;margin-bottom:12px}
+    #title .ctl{font-size:10px;gap:2px 14px;margin-bottom:14px;max-height:30vh;overflow:hidden}
+    .profrow{margin-bottom:12px}
+    .profrow input{font-size:14px;padding:6px 10px;width:180px}
+    #title .cta{font-size:13px;letter-spacing:4px;padding:9px 26px}
+  }
 
   /* hint + help */
   #hint{position:absolute;left:26px;bottom:26px;font-size:12px;letter-spacing:2px;color:var(--dim);
