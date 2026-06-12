@@ -14,18 +14,20 @@ const SETS = {
     ['thrup', 'KeyW', true, 'tb.thrUp'], ['thrdn', 'KeyS', true, 'tb.thrDn'],
     ['boost', 'ShiftLeft', true, 'tb.boost'], ['pulse', 'KeyJ', true, 'tb.pulse'],
     ['land', 'KeyL', false, 'tb.land'], ['scan', 'KeyC', false, 'tb.scan'],
-    ['radar', 'KeyM', false, 'tb.radar'],
+    ['catalog', 'KeyB', false, 'tb.catalog'], ['radar', 'KeyM', false, 'tb.radar'],
   ],
   landing: [],
   landed: [
     ['takeoff', 'Space', false, 'tb.takeoff'], ['exit', 'KeyF', false, 'tb.exit'],
-    ['hangar', 'KeyG', false, 'tb.hangar'], ['radar', 'KeyM', false, 'tb.radar'],
+    ['hangar', 'KeyG', false, 'tb.hangar'], ['catalog', 'KeyB', false, 'tb.catalog'],
+    ['radar', 'KeyM', false, 'tb.radar'],
   ],
   walk: [
     ['jet', 'Space', true, 'tb.jet'], ['run', 'ShiftLeft', true, 'tb.run'],
-    ['collect', 'KeyE', false, 'tb.collect'], ['board', 'KeyF', false, 'tb.board'],
+    ['mine', 'KeyE', true, 'tb.mine'], ['board', 'KeyF', false, 'tb.board'],
     ['scan', 'KeyC', false, 'tb.scan'], ['outfit', 'KeyO', false, 'tb.outfit'],
-    ['trade', 'KeyT', false, 'tb.trade'], ['radar', 'KeyM', false, 'tb.radar'],
+    ['trade', 'KeyT', false, 'tb.trade'], ['catalog', 'KeyB', false, 'tb.catalog'],
+    ['radar', 'KeyM', false, 'tb.radar'],
   ],
 };
 

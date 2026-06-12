@@ -7,6 +7,14 @@ import * as THREE from 'three';
 import { makeGlowTexture } from './textures.js';
 import { clamp } from './noise.js';
 
+// hull paints unlocked with mined gems (owned forever once bought)
+export const PAINTS = [
+  { id: 'red', hex: '#e8455a', name: { en: 'RED', es: 'ROJO' }, cost: 4 },
+  { id: 'blue', hex: '#3d8fe0', name: { en: 'BLUE', es: 'AZUL' }, cost: 4 },
+  { id: 'gold', hex: '#ffd34d', name: { en: 'GOLD', es: 'DORADO' }, cost: 4 },
+  { id: 'green', hex: '#42d97a', name: { en: 'GREEN', es: 'VERDE' }, cost: 4 },
+];
+
 export const SHIPS = {
   star: { name: { en: 'STARWING', es: 'ALA ESTELAR' }, resist: null, hull: '#cfd6dc', accent: '#e8b23c', glow: '#7fd4ff' },
   frost: { name: { en: 'FROSTWING', es: 'ESCARCHA' }, resist: 'cold', hull: '#eaf4fb', accent: '#7fd4ff', glow: '#bfe6ff' },
@@ -23,7 +31,9 @@ function buildInto(group, variantKey, out) {
   out.inner = inner;
   out.trailColor.set(v.glow);
 
-  const hull = new THREE.MeshStandardMaterial({ color: v.hull, roughness: 0.45, metalness: 0.6, flatShading: true });
+  const hull = new THREE.MeshStandardMaterial({
+    color: out.paintHex || v.hull, roughness: 0.45, metalness: 0.6, flatShading: true,
+  });
   const accent = new THREE.MeshStandardMaterial({ color: v.accent, roughness: 0.4, metalness: 0.55, flatShading: true });
   const dark = new THREE.MeshStandardMaterial({ color: '#23282e', roughness: 0.6, metalness: 0.7, flatShading: true });
   const glass = new THREE.MeshStandardMaterial({
@@ -141,6 +151,7 @@ export function makeShip(initialVariant = 'star') {
     navs: [],
     gearVisible: false,
     trailColor: new THREE.Color('#7fd4ff'),
+    paintHex: null,
     _phase: 0,
     get resist() { return (SHIPS[this.variantKey] || SHIPS.star).resist; },
     setThrust(f) {
@@ -171,6 +182,10 @@ export function makeShip(initialVariant = 'star') {
       if (!SHIPS[key]) return;
       this.variantKey = key;
       buildInto(group, key, this);
+    },
+    setPaint(hex) {
+      this.paintHex = hex || null;
+      buildInto(group, this.variantKey, this);
     },
   };
   buildInto(group, initialVariant, ship);

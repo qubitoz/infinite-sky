@@ -100,7 +100,8 @@
 
   /* species catalog */
   #catalog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:700px;
-    max-height:76vh;overflow:hidden;padding:20px 26px;display:none}
+    max-height:76vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:20px 26px;display:none}
   #catalog.on{display:block}
   #catalog h3{font-family:'Orbitron';font-size:16px;letter-spacing:4px;color:#9fe87f;margin-bottom:6px}
   .cat-planet{display:flex;justify-content:space-between;letter-spacing:2px;font-size:13px;
@@ -147,7 +148,8 @@
 
   /* hangar / trade reuse outfit styles */
   #hangar,#trade{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:480px;
-    max-height:70vh;overflow:hidden;padding:20px 26px;display:none}
+    max-height:70vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:20px 26px;display:none}
   #hangar.on,#trade.on{display:block}
   #hangar h3,#trade h3{font-family:'Orbitron';font-size:16px;letter-spacing:4px;color:var(--acc2);margin-bottom:10px}
   #hangar .piece,#trade .piece{display:flex;justify-content:space-between;font-size:14px;letter-spacing:1.5px;

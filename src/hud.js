@@ -4,7 +4,7 @@
 // switch via refreshLang().
 import * as THREE from 'three';
 import { MATERIALS, PIECES } from './gear.js';
-import { SHIPS } from './ship.js';
+import { SHIPS, PAINTS } from './ship.js';
 import { t, pick } from './i18n.js';
 
 const _v = new THREE.Vector3();
@@ -239,22 +239,32 @@ export class HUD {
     this.els.outfit.innerHTML = html;
   }
 
-  toggleHangar(owned, active) {
+  toggleHangar(owned, active, inv, paintState) {
     const turnOn = !this.hangarOn;
     this.closePanels();
     this.hangarOn = turnOn;
     this.els.hangar.classList.toggle('on', turnOn);
-    if (turnOn) this.renderHangar(owned, active);
+    if (turnOn) this.renderHangar(owned, active, inv, paintState);
   }
 
-  renderHangar(owned, active) {
-    this._hangarArgs = [owned, active];
+  renderHangar(owned, active, inv, paintState = { owned: [], current: null }) {
+    this._hangarArgs = [owned, active, inv, paintState];
     let html = `<h3>${t('hangar.title')}</h3><div class="pieces">`;
     owned.forEach((key, i) => {
       const s = SHIPS[key];
       const eq = key === active;
       const resist = s.resist ? `${t('hangar.shield')}: ${t('haz.' + s.resist)}` : `${t('hangar.shield')}: ${t('hangar.none')}`;
       html += `<div class="piece${eq ? ' eq' : ''}"><b>${i + 1}</b> <i class="sw" style="background:${s.hull};display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px"></i>${pick(s.name)} <span>${resist}${eq ? ' · ' + t('hangar.active') : ''}</span></div>`;
+    });
+    html += `</div><h3 style="margin-top:14px">${t('hangar.paints')} · ${t('hangar.gems')}: ${inv ? inv.count('gem') : 0}</h3><div class="pieces">`;
+    PAINTS.forEach((p, i) => {
+      const idx = owned.length + i + 1;
+      const has = paintState.owned.includes(p.id);
+      const cur = paintState.current === p.id;
+      const tag = has
+        ? (cur ? t('hangar.active') : '')
+        : `${t('trade.cost')}: ${p.cost} ${pick(MATERIALS.gem.name)}`;
+      html += `<div class="piece${cur ? ' eq' : ''}"><b>${idx}</b> <i class="sw" style="background:${p.hex};display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px"></i>${pick(p.name)} <span>${tag}</span></div>`;
     });
     html += `</div><div class="o-hint">${t('hangar.hint')}</div>`;
     this.els.hangar.innerHTML = html;

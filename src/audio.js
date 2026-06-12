@@ -48,6 +48,15 @@ export class AudioSys {
     wind.connect(this.windBP).connect(this.windGain).connect(this.master);
     wind.start();
 
+    // mining laser hum
+    this.laserOsc = ctx.createOscillator();
+    this.laserOsc.type = 'triangle';
+    this.laserOsc.frequency.value = 210;
+    this.laserGain = ctx.createGain();
+    this.laserGain.gain.value = 0;
+    this.laserOsc.connect(this.laserGain).connect(this.master);
+    this.laserOsc.start();
+
     // ambient pad
     this.padGain = ctx.createGain();
     this.padGain.gain.value = 0.0;
@@ -101,6 +110,12 @@ export class AudioSys {
     o.connect(g).connect(this.master);
     o.start(t0);
     o.stop(t0 + dur + 0.05);
+  }
+
+  setLaser(on, dt) {
+    if (!this.ok) return;
+    this._to(this.laserGain.gain, on ? 0.045 : 0, dt, 10);
+    if (on) this.laserOsc.frequency.value = 200 + Math.random() * 30;
   }
 
   blip(freq = 880) {

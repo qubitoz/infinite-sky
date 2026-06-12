@@ -85,6 +85,7 @@ export class Radar {
       else if (e.kind === 'part') { this.dot(px, py, 4, '#ffb347'); this.dot(px, py, 7, '#ffb347', true); }
       else if (e.kind === 'wreck') { this.dot(px, py, 5, '#ff8a4a', true); this.dot(px, py, 2, '#ff8a4a'); }
       else if (e.kind === 'vendor') this.dot(px, py, 4, '#ff7ab8');
+      else if (e.kind === 'ore') { this.dot(px, py, 3, '#ffd34d'); this.dot(px, py, 6, '#ffd34d', true); }
       else if (e.kind === 'ship') this.tri(px, py, Math.atan2(x, -y), '#7fd4ff', 6);
     }
     this.tri(m, m, 0, '#ffffff', 5); // you, facing up

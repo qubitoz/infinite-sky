@@ -5,7 +5,8 @@ import { makeSystem } from './universe.js';
 import { Planet, processBuildQueue, pendingBuilds } from './planet.js';
 import { TIME } from './shaders.js';
 import { makeStarfield, makeNebulae, makeSun, makeAsteroidBelt, WarpField, EngineTrail } from './effects.js';
-import { makeShip, SHIPS } from './ship.js';
+import { makeShip, SHIPS, PAINTS } from './ship.js';
+import { MiningManager } from './mining.js';
 import { Player } from './player.js';
 import { HUD } from './hud.js';
 import { AudioSys } from './audio.js';
@@ -107,6 +108,22 @@ player.avatar = avatar;
 const pickups = new PickupManager(scene);
 const inventory = new Inventory();
 const sites = new SiteManager(scene);
+const mining = new MiningManager(scene);
+const _beamFrom = new THREE.Vector3();
+let ownedPaints = [];
+let paintMap = {};
+const paintsState = () => ({ owned: ownedPaints, current: paintMap[ship.variantKey] || null });
+const savePaints = () => {
+  try {
+    localStorage.setItem(`infsky-paints-${profile}`, JSON.stringify(ownedPaints));
+    localStorage.setItem(`infsky-paint-${profile}`, JSON.stringify(paintMap));
+  } catch { /* fine */ }
+};
+const applyPaint = () => {
+  const pid = paintMap[ship.variantKey];
+  const p = pid && PAINTS.find((x) => x.id === pid);
+  ship.setPaint(p ? p.hex : null);
+};
 const radar = new Radar(
   document.getElementById('radarwrap'),
   document.getElementById('radar'),
@@ -184,6 +201,11 @@ function loadSaves() {
   })();
   if (ownedShips.includes(active)) ship.setVariant(active);
   try {
+    ownedPaints = JSON.parse(localStorage.getItem(`infsky-paints-${profile}`) || '[]');
+    paintMap = JSON.parse(localStorage.getItem(`infsky-paint-${profile}`) || '{}');
+  } catch { ownedPaints = []; paintMap = {}; }
+  applyPaint();
+  try {
     const vKey = `infsky-visited-${profile}-${galaxySeed}`;
     visited = new Set(JSON.parse(localStorage.getItem(vKey) || '[]'));
     visited.add(sysIdx);
@@ -200,6 +222,35 @@ const saveShips = () => {
     localStorage.setItem(`infsky-ship-${profile}`, ship.variantKey);
   } catch { /* fine */ }
 };
+
+// proximity collection (no button needed — kid-friendly)
+function collectPickupItem(it) {
+  const mat = pickups.collect(it);
+  const n = inventory.add(mat);
+  hud.toast(`+1 ${pick(MATERIALS[mat].name)}`, `${n} ${t('toast.total')}`);
+  audio.blip(740);
+  for (const p of PIECES) {
+    if (p.mat === mat && n === p.need) {
+      hud.toast(t('toast.unlock'), `${pick(p.name)} — ${t('toast.wear')}`);
+      audio.jingle();
+    }
+  }
+  if (hud.outfitOn) hud.renderOutfit(inventory);
+}
+
+function collectPartItem(nearestPlanet, part) {
+  const res = sites.collectPart(nearestPlanet, part);
+  if (res.done) {
+    if (!ownedShips.includes(res.ship)) ownedShips.push(res.ship);
+    saveShips();
+    hud.toast(t('toast.shipRepaired'), pick(SHIPS[res.ship].name));
+    hud.celebrate();
+    audio.celebrate();
+  } else {
+    hud.toast(t('toast.partFound'), `${res.got}/3`);
+    audio.jingle();
+  }
+}
 
 hud.setSystem(system.name, `${galaxySeed}·${sysIdx}`);
 hud.setWorlds(discoveredCount(), planets.length);
@@ -280,6 +331,11 @@ function hyperjump(idx) {
   setTimeout(() => { location.href = `?g=${galaxySeed}&s=${idx}`; }, 900);
 }
 pausedEl.addEventListener('click', lock);
+// mouse wheel scrolls the catalog even under pointer lock
+window.addEventListener('wheel', (e) => {
+  if (hud.catalogOn) hud.els.catalog.scrollTop += e.deltaY;
+  else if (hud.hangarOn) hud.els.hangar.scrollTop += e.deltaY;
+}, { passive: true });
 document.addEventListener('pointerlockchange', () => {
   if (touch) return; // no pointer lock on touch devices
   input.locked = !!document.pointerLockElement;
@@ -341,7 +397,7 @@ const loop = () => {
     if (input.pressed('KeyX')) toggleLang();
     if (input.pressed('KeyB')) hud.toggleCatalog(allSpecies, discoveredFauna, planets, firstBy);
     if (input.pressed('KeyO')) hud.toggleOutfit(inventory);
-    if (input.pressed('KeyG')) hud.toggleHangar(ownedShips, ship.variantKey);
+    if (input.pressed('KeyG')) hud.toggleHangar(ownedShips, ship.variantKey, inventory, paintsState());
     if (input.pressed('KeyM')) {
       radar.cycle(best < nearest.R * 0.6 || player.mode !== 'fly');
     }
@@ -373,16 +429,43 @@ const loop = () => {
           audio.blip(880);
         }
       } else if (hud.hangarOn) {
-        const key = ownedShips[i - 1];
-        if (key && key !== ship.variantKey) {
-          if (player.mode === 'landed' || player.mode === 'walk') {
-            ship.setVariant(key);
-            saveShips();
-            hud.renderHangar(ownedShips, ship.variantKey);
-            hud.toast(t('toast.shipEquipped'), pick(SHIPS[key].name));
-            audio.blip(700);
-          } else {
-            hud.toast(t('toast.equipLanded'));
+        if (i <= ownedShips.length) {
+          const key = ownedShips[i - 1];
+          if (key && key !== ship.variantKey) {
+            if (player.mode === 'landed' || player.mode === 'walk') {
+              ship.setVariant(key);
+              applyPaint();
+              saveShips();
+              hud.renderHangar(ownedShips, ship.variantKey, inventory, paintsState());
+              hud.toast(t('toast.shipEquipped'), pick(SHIPS[key].name));
+              audio.blip(700);
+            } else {
+              hud.toast(t('toast.equipLanded'));
+            }
+          }
+        } else {
+          const paint = PAINTS[i - ownedShips.length - 1];
+          if (paint) {
+            if (!ownedPaints.includes(paint.id)) {
+              if (inventory.count('gem') >= paint.cost) {
+                inventory.counts.gem -= paint.cost;
+                inventory.save();
+                ownedPaints.push(paint.id);
+                hud.toast(t('toast.paintUnlocked'), pick(paint.name));
+                audio.jingle();
+              } else {
+                hud.toast(t('toast.needGems'));
+                audio.blip(220);
+              }
+            }
+            if (ownedPaints.includes(paint.id)) {
+              paintMap[ship.variantKey] = paintMap[ship.variantKey] === paint.id ? null : paint.id;
+              applyPaint();
+              savePaints();
+              if (paintMap[ship.variantKey]) hud.toast(t('toast.painted'), pick(paint.name));
+              hud.renderHangar(ownedShips, ship.variantKey, inventory, paintsState());
+              audio.blip(820);
+            }
           }
         }
       } else if (hud.tradeOn && i === 1 && vendorPieceOpen) {
@@ -395,37 +478,6 @@ const loop = () => {
         } else {
           hud.toast(t('toast.noMats'));
           audio.blip(220);
-        }
-      }
-    }
-    if (player.mode === 'walk' && input.pressed('KeyE')) {
-      const part = sites.nearestPart(nearest, player.bodyPos(), 6);
-      if (part) {
-        const res = sites.collectPart(nearest, part);
-        if (res.done) {
-          if (!ownedShips.includes(res.ship)) ownedShips.push(res.ship);
-          saveShips();
-          hud.toast(t('toast.shipRepaired'), pick(SHIPS[res.ship].name));
-          hud.celebrate();
-          audio.celebrate();
-        } else {
-          hud.toast(t('toast.partFound'), `${res.got}/3`);
-          audio.jingle();
-        }
-      } else {
-        const it = pickups.nearestWithin(player.bodyPos(), 5.5);
-        if (it) {
-          const mat = pickups.collect(it);
-          const n = inventory.add(mat);
-          hud.toast(`+1 ${pick(MATERIALS[mat].name)}`, `${n} ${t('toast.total')}`);
-          audio.blip(740);
-          for (const p of PIECES) {
-            if (p.mat === mat && n === p.need) {
-              hud.toast(t('toast.unlock'), `${pick(p.name)} — ${t('toast.wear')}`);
-              audio.jingle();
-            }
-          }
-          if (hud.outfitOn) hud.renderOutfit(inventory);
         }
       }
     }
@@ -488,6 +540,42 @@ const loop = () => {
   pickups.update(dt, started ? player.bodyPos() : camera.position, nearest,
     started && player.mode === 'walk');
   sites.update(dt, started ? player.bodyPos() : camera.position, nearest, started);
+  mining.update(dt, started ? player.bodyPos() : camera.position, nearest,
+    started && player.mode === 'walk');
+
+  // on foot: pieces and materials collect by proximity; gems need the laser
+  if (started && player.mode === 'walk' && input.locked) {
+    const body = player.bodyPos();
+    const part = sites.nearestPart(nearest, body, 4.5);
+    if (part) collectPartItem(nearest, part);
+    const it = pickups.nearestWithin(body, 3.5);
+    if (it) collectPickupItem(it);
+
+    let lasering = false;
+    if (input.key('KeyE') || input.mouseDown) {
+      const node = (mining.target && mining.nodes.includes(mining.target)
+        && mining.target.pos.distanceTo(body) < 16)
+        ? mining.target
+        : mining.pickTarget(body, player.walk.fwd, 15);
+      if (node) {
+        _beamFrom.copy(body).addScaledVector(player.walk.fwd, 0.8);
+        const got = mining.mine(dt, node, _beamFrom, trail);
+        lasering = true;
+        if (got === 'gem') {
+          const n = inventory.add('gem');
+          hud.toast(`+1 ${pick(MATERIALS.gem.name)}`, `${n} ${t('toast.total')}`);
+          audio.blip(990);
+          if (hud.hangarOn) hud.renderHangar(ownedShips, ship.variantKey, inventory, paintsState());
+          if (hud.outfitOn) hud.renderOutfit(inventory);
+        }
+      }
+    }
+    if (!lasering) mining.stopBeam();
+    audio.setLaser(lasering, dt);
+  } else {
+    mining.stopBeam();
+    audio.setLaser(false, dt);
+  }
 
   // ship beacon while on foot
   if (started && player.mode === 'walk') {
@@ -604,6 +692,13 @@ const loop = () => {
           pos: blip.pos, kind: blip.kind === 'vendor' ? 'creature' : 'pickup', discovered: true,
         });
       }
+      for (const blip of mining.blips()) {
+        if (blip.pos.distanceTo(player.bodyPos()) > 80) continue;
+        markers.push({
+          name: t('mk.ore'), sub: t('mk.mine'), pos: blip.pos,
+          kind: 'pickup', discovered: true,
+        });
+      }
     }
     if (faunaActive) {
       for (const c of creatureMgr.nearestList(player.bodyPos(), 95, 3)) {
@@ -661,6 +756,7 @@ const loop = () => {
         for (const c of creatureMgr.alive) proj(c.pos, 'creature', discoveredFauna.has(c.spec.id));
         for (const it of pickups.items) proj(it.pos, 'pickup');
         for (const blip of sites.blips(nearest)) proj(blip.pos, blip.kind);
+        for (const blip of mining.blips()) proj(blip.pos, 'ore');
         if (player.mode === 'walk') proj(player.pos, 'ship');
         const sp = nearest.species || [];
         data.planet = {
@@ -695,7 +791,8 @@ renderer.setAnimationLoop(loop);
 window.__game = {
   start: () => titleEl.click(), player, planets, camera, system, input, hud,
   creatureMgr, allSpecies, discoveredFauna, inventory, pickups, avatar,
-  radar, sites, galaxy, ship, hyperjump, weather, get ownedShips() { return ownedShips; },
+  radar, sites, galaxy, ship, hyperjump, weather, mining,
+  get ownedShips() { return ownedShips; },
   step(n = 1, dt = 1 / 60) {
     FIXED_DT = dt;
     for (let i = 0; i < n; i++) loop();

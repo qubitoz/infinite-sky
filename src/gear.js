@@ -15,6 +15,8 @@ export const MATERIALS = {
   obsidian: { name: { en: 'OBSIDIAN', es: 'OBSIDIANA' }, color: '#4a4156' },
   spore: { name: { en: 'GLOW SPORE', es: 'ESPORA LUMINOSA' }, color: '#8aff6a' },
   crystal: { name: { en: 'CRYSTAL', es: 'CRISTAL' }, color: '#d98aff' },
+  gem: { name: { en: 'LUMA GEM', es: 'GEMA LUMINOSA' }, color: '#ffd34d' },
+  fruit: { name: { en: 'STAR FRUIT', es: 'FRUTA ESTELAR' }, color: '#ff8a5c' },
 };
 
 export const PIECES = [
@@ -36,9 +38,14 @@ export const VENDOR_PIECES = [
   { id: 'sporelantern', name: { en: 'SPORE LANTERN', es: 'FAROL DE ESPORAS' }, slot: 'back', cost: { spore: 3, mud: 2 }, kits: ['shroom', 'swamp'] },
   { id: 'prismhalo', name: { en: 'PRISM HALO', es: 'HALO DE PRISMA' }, slot: 'head', cost: { crystal: 4 }, kits: ['crystal', 'candy'] },
   { id: 'starmask', name: { en: 'STAR MASK', es: 'MÁSCARA ESTELAR' }, slot: 'face', cost: { bone: 2, ice: 2 }, kits: ['frost', 'spikes', 'rocks'] },
+  // premium pieces paid with mined / gathered phase-3 resources
+  { id: 'gemtiara', name: { en: 'GEM TIARA', es: 'TIARA DE GEMAS' }, slot: 'head', cost: { gem: 5 }, kits: ['forest', 'crystal', 'frost', 'candy'] },
+  { id: 'fruitcharm', name: { en: 'FRUIT CHARM', es: 'AMULETO FRUTAL' }, slot: 'back', cost: { fruit: 4, leaf: 2 }, kits: ['forest', 'shroom', 'swamp', 'cacti'] },
 ];
-export function vendorPieceFor(kit) {
-  return VENDOR_PIECES.find((p) => p.kits.includes(kit)) || VENDOR_PIECES[0];
+export function vendorPieceFor(kit, rand = Math.random) {
+  const fits = VENDOR_PIECES.filter((p) => p.kits.includes(kit));
+  if (!fits.length) return VENDOR_PIECES[0];
+  return fits[(rand() * fits.length) | 0];
 }
 
 // ------------------------------------------------------------ piece meshes
@@ -163,6 +170,18 @@ export function buildPiece(id) {
       }
       break;
     }
+    case 'gemtiara': {
+      add(g, _geo.torus, pm('#caa44c', { metalness: 0.7, roughness: 0.3 }), 0.25, 0.25, 0.25, 0, 0.02, 0, Math.PI / 2);
+      const gm = pm('#ffd34d', { emissive: '#cc8800', emissiveIntensity: 0.7, roughness: 0.15 });
+      for (let i = -1; i <= 1; i++) add(g, _geo.oct, gm, 0.07, 0.12, 0.07, i * 0.13, 0.14 - Math.abs(i) * 0.04, -0.18);
+      break;
+    }
+    case 'fruitcharm': {
+      add(g, _geo.cyl, pm('#8a6a42'), 0.02, 0.5, 0.02, 0, -0.2, 0.05, 0.3);
+      add(g, _geo.sphere, pm('#ff8a5c', { emissive: '#aa3311', emissiveIntensity: 0.4, roughness: 0.4 }), 0.12, 0.14, 0.12, 0, -0.46, 0.12);
+      add(g, _geo.sphere, pm('#9adf5a'), 0.05, 0.03, 0.05, 0, -0.33, 0.12);
+      break;
+    }
     default: return null;
   }
   return g;
@@ -255,7 +274,11 @@ export class PickupManager {
   }
 
   spawnOne(planet, anchor) {
-    const avail = planet.def.biome.materials || [];
+    const kit = planet.def.biome.kit;
+    const avail = [
+      ...(planet.def.biome.materials || []),
+      ...(['forest', 'candy', 'shroom', 'swamp'].includes(kit) ? ['fruit'] : []),
+    ];
     if (!avail.length) return;
     const mat = avail[(Math.random() * avail.length) | 0];
     _u.copy(anchor).sub(planet.center).normalize();

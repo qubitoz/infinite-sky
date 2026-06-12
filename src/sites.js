@@ -70,7 +70,7 @@ export class SiteManager {
         };
       }
       if ((planet.def.biome.faunaCount || 0) > 0 && rand() < 0.5) {
-        vendor = { dir: randomUnit(rand, new THREE.Vector3()), piece: vendorPieceFor(planet.def.biome.kit) };
+        vendor = { dir: randomUnit(rand, new THREE.Vector3()), piece: vendorPieceFor(planet.def.biome.kit, rand) };
       }
       this.defs.set(pid, { wreck, vendor });
     }

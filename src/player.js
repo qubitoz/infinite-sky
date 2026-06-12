@@ -13,6 +13,9 @@ export class Input {
     this.just = new Set();
     this.mdx = 0; this.mdy = 0;
     this.locked = false;
+    this.mouseDown = false;
+    window.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouseDown = true; });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseDown = false; });
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
       if (!e.repeat) this.just.add(e.code);
