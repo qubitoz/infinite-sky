@@ -30,6 +30,7 @@ export class HUD {
       outfit: $('outfit'), confetti: $('confetti'), hangar: $('hangar'), trade: $('trade'),
       lblthr: $('lblthr'), lblbst: $('lblbst'), lblpls: $('lblpls'), loadtxt: $('loading'),
       markers: $('markers'), scanring: $('scanring'), loading: $('loading'),
+      warpflash: $('warpflash'),
     };
     this.catalogOn = false;
     this.outfitOn = false;
@@ -121,6 +122,13 @@ export class HUD {
     this.els.toasts.appendChild(div);
     while (this.els.toasts.children.length > 3) this.els.toasts.firstChild.remove();
     setTimeout(() => div.remove(), 4700);
+  }
+
+  warpFlash() {
+    const f = this.els.warpflash;
+    f.classList.remove('go');
+    void f.offsetWidth;
+    f.classList.add('go');
   }
 
   scanFx() {

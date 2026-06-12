@@ -309,6 +309,7 @@ const _dirToSun = new THREE.Vector3();
 const _vd = new THREE.Vector3();
 let lastAtmoPlanet = null;
 let callTimer = 3;
+let pulsePrev = false;
 const clock = new THREE.Clock();
 
 // lightweight fps meter (?fps=1) so testers can report real device numbers
@@ -465,6 +466,15 @@ const loop = () => {
 
   if (!started) titleCam(dt);
   else if (input.locked) player.update(dt, nearest, planets);
+
+  // cinematic pulse feedback: flash on engage/disengage + tunnel vignette
+  if (started) {
+    if (player.pulse.active !== pulsePrev) {
+      pulsePrev = player.pulse.active;
+      hud.warpFlash();
+    }
+    document.body.classList.toggle('pulsing', player.pulse.factor > 0.45);
+  }
 
   for (const p of planets) p.update(camera.position, p === nearest, dt);
   processBuildQueue(started ? QUAL.budget : 22);

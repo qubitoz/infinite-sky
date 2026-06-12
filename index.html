@@ -19,6 +19,15 @@
 
   #vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 52%,rgba(0,2,8,.55) 100%)}
+  /* warp tunnel vignette while the pulse drive is engaged */
+  #pulsevin{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .45s;
+    background:radial-gradient(ellipse at center,transparent 30%,rgba(60,30,120,.38) 75%,rgba(15,8,40,.72) 100%)}
+  body.pulsing #pulsevin{opacity:1}
+  /* hyperdrive engage/disengage flash */
+  #warpflash{position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at center,rgba(210,235,255,.95),rgba(150,170,255,.35) 45%,transparent 75%)}
+  #warpflash.go{animation:wflash .55s ease-out}
+  @keyframes wflash{0%{opacity:.9}100%{opacity:0}}
 
   /* ---------- HUD ---------- */
   #hud{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .6s}
@@ -293,6 +302,8 @@
 </head>
 <body>
   <div id="vignette"></div>
+  <div id="pulsevin"></div>
+  <div id="warpflash"></div>
 
   <div id="hud">
     <div id="crosshair"><div class="ring"></div><div class="dot"></div>

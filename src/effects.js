@@ -160,32 +160,49 @@ export function makeAsteroidBelt(rand, belt, count) {
   return inst;
 }
 
-// pulse-drive star streaks: world-fixed line segments respawned around the camera
+// pulse-drive star streaks: world-fixed line segments respawned around the
+// camera. Two layers — a crisp blue core plus a longer, fainter violet trail
+// underneath — give the warp tunnel a cinematic depth without any post-fx.
 export class WarpField {
   constructor(scene, count = 220) {
     this.count = count;
     this.anchors = Array.from({ length: count }, () => new THREE.Vector3());
-    this.geo = new THREE.BufferGeometry();
-    this.geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 6), 3));
-    this.mat = new THREE.LineBasicMaterial({
-      color: 0xaad8ff, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-    });
-    this.lines = new THREE.LineSegments(this.geo, this.mat);
-    this.lines.frustumCulled = false;
-    this.lines.visible = false;
+    const mk = (color) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 6), 3));
+      const mat = new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      });
+      const lines = new THREE.LineSegments(geo, mat);
+      lines.frustumCulled = false;
+      lines.visible = false;
+      scene.add(lines);
+      return { geo, mat, lines };
+    };
+    this.core = mk(0xaad8ff);
+    this.halo = mk(0xb48cff);
     this.fresh = true;
-    scene.add(this.lines);
     this._r = new THREE.Vector3();
     this._p = new THREE.Vector3();
   }
 
   update(camPos, velDir, speed, intensity) {
-    if (intensity < 0.02 || speed < 800) { this.lines.visible = false; this.fresh = true; return; }
-    this.lines.visible = true;
-    this.mat.opacity = clamp(intensity, 0, 1) * 0.7;
-    const arr = this.geo.attributes.position.array;
-    const L = 6 + speed * 0.014;
+    if (intensity < 0.02 || speed < 800) {
+      this.core.lines.visible = false;
+      this.halo.lines.visible = false;
+      this.fresh = true;
+      return;
+    }
+    this.core.lines.visible = true;
+    this.halo.lines.visible = true;
+    const k = clamp(intensity, 0, 1);
+    this.core.mat.opacity = k * 0.75;
+    this.halo.mat.opacity = k * 0.32;
+    const a1 = this.core.geo.attributes.position.array;
+    const a2 = this.halo.geo.attributes.position.array;
+    const L = 6 + speed * 0.016;
+    const L2 = L * 2.3;
     for (let i = 0; i < this.count; i++) {
       const a = this.anchors[i];
       this._r.subVectors(a, camPos);
@@ -198,11 +215,14 @@ export class WarpField {
         this._p.normalize().multiplyScalar(20 + Math.random() * 200);
         a.copy(camPos).addScaledVector(velDir, 60 + Math.random() * 620).add(this._p);
       }
-      arr[i * 6] = a.x; arr[i * 6 + 1] = a.y; arr[i * 6 + 2] = a.z;
-      arr[i * 6 + 3] = a.x - velDir.x * L; arr[i * 6 + 4] = a.y - velDir.y * L; arr[i * 6 + 5] = a.z - velDir.z * L;
+      a1[i * 6] = a.x; a1[i * 6 + 1] = a.y; a1[i * 6 + 2] = a.z;
+      a1[i * 6 + 3] = a.x - velDir.x * L; a1[i * 6 + 4] = a.y - velDir.y * L; a1[i * 6 + 5] = a.z - velDir.z * L;
+      a2[i * 6] = a.x; a2[i * 6 + 1] = a.y; a2[i * 6 + 2] = a.z;
+      a2[i * 6 + 3] = a.x - velDir.x * L2; a2[i * 6 + 4] = a.y - velDir.y * L2; a2[i * 6 + 5] = a.z - velDir.z * L2;
     }
     this.fresh = false;
-    this.geo.attributes.position.needsUpdate = true;
+    this.core.geo.attributes.position.needsUpdate = true;
+    this.halo.geo.attributes.position.needsUpdate = true;
   }
 }
 

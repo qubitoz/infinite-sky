@@ -67,6 +67,10 @@ export class Player {
     this.avatar = null; // set by main after construction
     this.landAnim = null;
     this.hazardT = 0;
+    this.bankSm = 0;
+    this.accelSm = 0;
+    this.lastSpeed = 0;
+    this.pulseKick = 0;
     this.camPos = new THREE.Vector3();
     this.camInit = false;
     this.shake = 0;
@@ -96,6 +100,8 @@ export class Player {
 
   update(dt, nearest, planets) {
     if (this.avatar) this.avatar.group.visible = this.mode === 'walk';
+    // nav lights keep blinking while parked / being walked around
+    if (this.mode !== 'fly') this.ship.tick(dt, 0, 0);
     if (this.mode === 'fly') this.updateFly(dt, nearest, planets);
     else if (this.mode === 'landing') this.updateLanding(dt, nearest);
     else if (this.mode === 'landed') this.updateLanded(dt, nearest);
@@ -141,6 +147,8 @@ export class Player {
       this.pulse.spool = Math.min(this.pulse.spool + dt, 1);
       if (this.pulse.spool > 0.85 && !this.pulse.active) {
         this.pulse.active = true;
+        this.pulseKick = 1;
+        this.shake = Math.max(this.shake, 0.5);
         this.audio.pulseUp();
         this.hud.toast(t('toast.pulseOn'));
       }
@@ -149,7 +157,11 @@ export class Player {
         this.hud.toast(t('toast.pulseBlocked'), t('toast.leaveAtmo'));
       }
       this.pulse.spool = Math.max(this.pulse.spool - dt * 2, 0);
-      if (this.pulse.active && !wantPulse) { this.pulse.active = false; this.audio.pulseDown(); }
+      if (this.pulse.active && !wantPulse) {
+        this.pulse.active = false;
+        this.pulseKick = 0.6;
+        this.audio.pulseDown();
+      }
     }
     if (this.pulse.active) {
       for (const p of planets) {
@@ -157,6 +169,8 @@ export class Player {
         // only drop out of pulse when closing in on a world, not when leaving one
         if (_v2.length() - p.R < p.R * 1.15 && this.vel.dot(_v2) > 0) {
           this.pulse.active = false;
+          this.pulseKick = 0.7;
+          this.shake = Math.max(this.shake, 0.4);
           this.vel.clampLength(0, 280);
           this.throttle = Math.min(this.throttle, 0.4);
           this.hud.toast(t('toast.pulseOff'), `${p.def.name} ${t('toast.ahead')}`);
@@ -170,7 +184,8 @@ export class Player {
     // steering
     const m = inp.consumeMouse();
     const agility = 1 / (1 + this.pulse.factor * 4);
-    _q1.setFromAxisAngle(_Y, clamp(-m.dx * 0.0021, -0.09, 0.09) * agility);
+    const yawIn = clamp(-m.dx * 0.0021, -0.09, 0.09) * agility;
+    _q1.setFromAxisAngle(_Y, yawIn);
     this.quat.multiply(_q1);
     _q1.setFromAxisAngle(_X, clamp(-m.dy * 0.0021, -0.09, 0.09) * agility);
     this.quat.multiply(_q1);
@@ -199,6 +214,14 @@ export class Player {
     this.vel.lerp(_v1, 1 - Math.exp(-dt * 2.6));
     this.pos.addScaledVector(this.vel, dt);
     this.speed = this.vel.length();
+
+    // motion feel: cosmetic banking into turns + squash & stretch with accel
+    const accel = (this.speed - this.lastSpeed) / Math.max(dt, 1e-3);
+    this.lastSpeed = this.speed;
+    this.accelSm = lerp(this.accelSm, accel, 1 - Math.exp(-dt * 4));
+    this.bankSm = lerp(this.bankSm, clamp(yawIn * 6, -0.45, 0.45), 1 - Math.exp(-dt * 5));
+    this.pulseKick *= Math.exp(-dt * 3);
+    this.ship.tick(dt, this.bankSm, clamp(this.accelSm / 650, -0.12, 0.18));
 
     // terrain collision
     const smp2 = nearest.sampleAt(this.pos);
@@ -243,24 +266,50 @@ export class Player {
     // engine visuals
     const thrustF = this.throttle * (this.boosting ? 1.6 : 1) + this.pulse.factor;
     this.ship.setThrust(thrustF);
+    this.ship.group.updateMatrixWorld();
+    _f.set(0, 0, -1).applyQuaternion(this.quat);
     if (this.throttle > 0.04 && this.pulse.factor < 0.5) {
-      this.ship.group.updateMatrixWorld();
-      _f.set(0, 0, -1).applyQuaternion(this.quat);
+      // exhaust density scales with boost and hard acceleration
+      const burst = 1 + (this.boosting ? 1 : 0) + (this.accelSm > 130 ? 1 : 0);
       for (const n of this.ship.nozzles) {
-        _v1.copy(n).applyMatrix4(this.ship.group.matrixWorld);
-        _v2.copy(this.vel).addScaledVector(_f, -26 - this.speed * 0.05);
-        _v2.x += (Math.random() - 0.5) * 5;
-        _v2.y += (Math.random() - 0.5) * 5;
-        _v2.z += (Math.random() - 0.5) * 5;
-        this.trail.spawn(_v1, _v2, 0.45, 0.8, 1.0, 0.4 + Math.random() * 0.3);
+        for (let b = 0; b < burst; b++) {
+          _v1.copy(n).applyMatrix4(this.ship.inner.matrixWorld);
+          _v2.copy(this.vel).addScaledVector(_f, -26 - this.speed * 0.05);
+          _v2.x += (Math.random() - 0.5) * 5;
+          _v2.y += (Math.random() - 0.5) * 5;
+          _v2.z += (Math.random() - 0.5) * 5;
+          this.trail.spawn(_v1, _v2, 0.45, 0.8, 1.0, 0.4 + Math.random() * 0.3);
+        }
       }
+    }
+    // retro thrusters: white puffs from the nose while braking
+    if (inp.key('KeyS') && this.speed > 40) {
+      for (const sgn of [-1, 1]) {
+        _v1.set(sgn * 0.7, 0.1, -2.9).applyMatrix4(this.ship.inner.matrixWorld);
+        _v2.copy(this.vel).multiplyScalar(0.25).addScaledVector(_f, 26);
+        _v2.x += (Math.random() - 0.5) * 4;
+        _v2.y += (Math.random() - 0.5) * 4;
+        _v2.z += (Math.random() - 0.5) * 4;
+        this.trail.spawn(_v1, _v2, 0.9, 0.95, 1.0, 0.2 + Math.random() * 0.12);
+      }
+    }
+    // re-entry sparks when diving fast through an atmosphere
+    if (atmoF > 0.15 && this.speed > 170) {
+      _v1.set((Math.random() - 0.5) * 1.4, -0.25, -3.0).applyMatrix4(this.ship.inner.matrixWorld);
+      _v2.copy(this.vel).multiplyScalar(0.15);
+      _v2.x += (Math.random() - 0.5) * 10;
+      _v2.y += (Math.random() - 0.5) * 10;
+      _v2.z += (Math.random() - 0.5) * 10;
+      this.trail.spawn(_v1, _v2, 1.0, 0.62, 0.25, 0.3 + Math.random() * 0.2);
     }
 
     this.updateChaseCam(dt, nearest);
   }
 
   updateChaseCam(dt, nearest) {
-    _v1.set(0, 3.1, 11.8).applyQuaternion(this.quat).add(this.pos);
+    // the camera stretches back under acceleration and tucks in when braking
+    _v1.set(0, 3.1, 11.8 + clamp(this.accelSm * 0.004, -1.4, 2.2))
+      .applyQuaternion(this.quat).add(this.pos);
     if (!this.camInit) this.camPos.copy(_v1);
     this.camPos.lerp(_v1, 1 - Math.exp(-dt * 7));
     const cs = nearest.sampleAt(this.camPos);
@@ -279,7 +328,8 @@ export class Player {
     if (!this.camInit) { this.camera.quaternion.copy(_q1); this.camInit = true; }
     else this.camera.quaternion.slerp(_q1, 1 - Math.exp(-dt * 10));
 
-    const fovT = 72 + (this.boosting ? 7 : 0) + this.pulse.factor * 16;
+    const fovT = 72 + (this.boosting ? 7 : 0) + this.pulse.factor * 16
+      + this.pulseKick * 10 + clamp(this.speed / 230, 0, 1) * 2;
     if (Math.abs(this.camera.fov - fovT) > 0.05) {
       this.camera.fov = lerp(this.camera.fov, fovT, 1 - Math.exp(-dt * 4));
       this.camera.updateProjectionMatrix();
@@ -293,6 +343,20 @@ export class Player {
     const s = la.t * la.t * (3 - 2 * la.t);
     this.pos.lerpVectors(la.from, la.to, s);
     this.quat.slerpQuaternions(la.q0, la.q1, s);
+    // touchdown dust burst just before settling
+    if (la.t > 0.9 && !la.dusted) {
+      la.dusted = true;
+      _up.copy(la.to).sub(nearest.center).normalize();
+      for (let i = 0; i < 14; i++) {
+        _v1.copy(la.to).addScaledVector(_up, 0.4);
+        _v2.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+        _v2.addScaledVector(_up, -_v2.dot(_up));
+        if (_v2.lengthSq() > 1e-6) _v2.normalize().multiplyScalar(7 + Math.random() * 12);
+        _v2.addScaledVector(_up, 2.2);
+        this.trail.spawn(_v1, _v2, 0.62, 0.55, 0.42, 0.5 + Math.random() * 0.4);
+      }
+      this.audio.thud();
+    }
     this.vel.set(0, 0, 0);
     this.throttle = 0;
     this.speed = 0;
@@ -337,6 +401,15 @@ export class Player {
       this.ship.setGear(false);
       this.throttle = 0.35;
       this.vel.copy(smp.up).multiplyScalar(40);
+      // lift-off dust kick
+      for (let i = 0; i < 10; i++) {
+        _v1.copy(this.pos);
+        _v2.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+        _v2.addScaledVector(smp.up, -_v2.dot(smp.up));
+        if (_v2.lengthSq() > 1e-6) _v2.normalize().multiplyScalar(8 + Math.random() * 10);
+        _v2.addScaledVector(smp.up, 3);
+        this.trail.spawn(_v1, _v2, 0.62, 0.55, 0.42, 0.4 + Math.random() * 0.3);
+      }
       this.pos.addScaledVector(smp.up, 0.6);
       this.audio.blip(700);
       this.camInit = false;

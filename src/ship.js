@@ -1,6 +1,8 @@
 // Procedurally assembled starfighters. Nose points -Z. Five variants — the
 // starter plus one per climate hazard; setVariant rebuilds the mesh in place
 // so external references (group/position/quaternion) stay valid.
+// All visual parts live in an `inner` wrapper so cosmetic banking and
+// squash-and-stretch never touch the flight orientation.
 import * as THREE from 'three';
 import { makeGlowTexture } from './textures.js';
 import { clamp } from './noise.js';
@@ -16,6 +18,9 @@ export const SHIPS = {
 function buildInto(group, variantKey, out) {
   while (group.children.length) group.remove(group.children[0]);
   const v = SHIPS[variantKey] || SHIPS.star;
+  const inner = new THREE.Group();
+  group.add(inner);
+  out.inner = inner;
 
   const hull = new THREE.MeshStandardMaterial({ color: v.hull, roughness: 0.45, metalness: 0.6, flatShading: true });
   const accent = new THREE.MeshStandardMaterial({ color: v.accent, roughness: 0.4, metalness: 0.55, flatShading: true });
@@ -29,27 +34,50 @@ function buildInto(group, variantKey, out) {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
     m.rotation.set(rx, ry, rz);
-    group.add(m);
+    inner.add(m);
     return m;
   };
 
-  add(new THREE.BoxGeometry(1.5, 0.9, 4.6), hull, 0, 0, 0.4);
-  const nose = new THREE.ConeGeometry(0.8, 2.8, 4);
+  // tapered hexagonal fuselage + matching nose
+  const hullGeo = new THREE.CylinderGeometry(0.85, 0.52, 4.6, 6);
+  hullGeo.rotateX(Math.PI / 2); // axis → Z, wide end aft
+  hullGeo.scale(1.25, 0.72, 1);
+  add(hullGeo, hull, 0, 0, 0.35);
+  const nose = new THREE.ConeGeometry(0.52, 2.5, 6);
   nose.rotateX(-Math.PI / 2);
-  nose.rotateZ(Math.PI / 4);
-  nose.scale(1.15, 0.6, 1);
-  add(nose, hull, 0, -0.05, -3.2);
-  const can = new THREE.SphereGeometry(0.62, 12, 8);
-  can.scale(1, 0.72, 1.7);
-  add(can, glass, 0, 0.58, -1.1);
-  add(new THREE.BoxGeometry(0.5, 0.06, 3.6), accent, 0, 0.49, 0.5);
+  nose.scale(1.25, 0.72, 1);
+  add(nose, hull, 0, 0, -3.2);
 
+  // raked canopy + upper deck + spine stripe
+  const can = new THREE.SphereGeometry(0.55, 12, 8);
+  can.scale(0.95, 0.55, 2.1);
+  add(can, glass, 0, 0.52, -1.35);
+  add(new THREE.BoxGeometry(0.85, 0.3, 1.9), hull, 0, 0.48, 1.15);
+  add(new THREE.BoxGeometry(0.4, 0.07, 3.2), accent, 0, 0.66, 0.7);
+
+  // side intakes
   for (const sgn of [-1, 1]) {
-    add(new THREE.BoxGeometry(3.6, 0.12, 1.6), hull, sgn * 2.3, -0.1, 0.9, 0, sgn * 0.32, -sgn * 0.16);
-    add(new THREE.BoxGeometry(0.12, 0.78, 1.2), accent, sgn * 3.9, 0.1, 1.45, 0, 0, -sgn * 0.1);
-    add(new THREE.BoxGeometry(1.2, 0.1, 0.7), accent, sgn * 1.4, -0.02, 0.6, 0, sgn * 0.32, -sgn * 0.16);
+    const intake = new THREE.CylinderGeometry(0.3, 0.36, 1.5, 6);
+    intake.rotateX(Math.PI / 2);
+    add(intake, dark, sgn * 0.98, -0.08, -0.45);
+    add(new THREE.BoxGeometry(0.1, 0.24, 1.1), accent, sgn * 1.16, -0.08, -0.45);
   }
-  add(new THREE.BoxGeometry(0.12, 1.15, 1.5), hull, 0, 0.95, 2.0, 0.25, 0, 0);
+
+  // swept wings: main plane + leading-edge accent + tip fin + nav light
+  out.navs = [];
+  for (const sgn of [-1, 1]) {
+    add(new THREE.BoxGeometry(3.4, 0.1, 1.9), hull, sgn * 2.2, -0.12, 1.05, 0, sgn * 0.45, -sgn * 0.12);
+    add(new THREE.BoxGeometry(3.0, 0.06, 0.5), accent, sgn * 2.05, -0.06, 0.35, 0, sgn * 0.45, -sgn * 0.12);
+    add(new THREE.BoxGeometry(0.1, 0.72, 1.15), accent, sgn * 3.72, 0.14, 1.8, 0, 0, -sgn * 0.12);
+    const nav = add(new THREE.SphereGeometry(0.09, 6, 5),
+      new THREE.MeshBasicMaterial({ color: sgn < 0 ? '#ff4a4a' : '#4aff7a', toneMapped: false }),
+      sgn * 3.74, 0.55, 1.8);
+    out.navs.push(nav);
+  }
+
+  // swept tail fin
+  add(new THREE.BoxGeometry(0.1, 1.25, 1.6), hull, 0, 0.95, 2.15, 0.32, 0, 0);
+  add(new THREE.BoxGeometry(0.12, 0.28, 0.7), accent, 0, 1.52, 2.45, 0.32, 0, 0);
 
   // variant signature pieces
   if (variantKey === 'frost') {
@@ -72,23 +100,25 @@ function buildInto(group, variantKey, out) {
     }), 0, 1.2, 1.6);
   }
 
+  // engines: nacelle + accent ring + bright nozzle disc + glow sprite
   out.nozzles.length = 0;
   out.glows.length = 0;
   out.gear.length = 0;
   for (const sgn of [-1, 1]) {
-    const eng = new THREE.CylinderGeometry(0.42, 0.52, 1.7, 8);
+    const eng = new THREE.CylinderGeometry(0.42, 0.52, 1.8, 8);
     eng.rotateX(Math.PI / 2);
-    add(eng, dark, sgn * 1.08, -0.05, 2.45);
+    add(eng, dark, sgn * 1.12, -0.05, 2.45);
+    add(new THREE.TorusGeometry(0.46, 0.06, 6, 12), accent, sgn * 1.12, -0.05, 3.3);
     add(new THREE.CircleGeometry(0.34, 12),
-      new THREE.MeshBasicMaterial({ color: v.glow, toneMapped: false }), sgn * 1.08, -0.05, 3.32);
-    out.nozzles.push(new THREE.Vector3(sgn * 1.08, -0.05, 3.45));
+      new THREE.MeshBasicMaterial({ color: v.glow, toneMapped: false }), sgn * 1.12, -0.05, 3.34);
+    out.nozzles.push(new THREE.Vector3(sgn * 1.12, -0.05, 3.45));
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
       map: makeGlowTexture(), color: v.glow, transparent: true, opacity: 0.8,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
-    sp.position.set(sgn * 1.08, -0.05, 3.45);
+    sp.position.set(sgn * 1.12, -0.05, 3.45);
     sp.scale.set(1.4, 1.4, 1);
-    group.add(sp);
+    inner.add(sp);
     out.glows.push(sp);
   }
   for (const [x, z] of [[-0.95, 1.0], [0.95, 1.0], [0, -1.9]]) {
@@ -102,11 +132,14 @@ export function makeShip(initialVariant = 'star') {
   const group = new THREE.Group();
   const ship = {
     group,
+    inner: null,
     variantKey: initialVariant,
     nozzles: [],
     glows: [],
     gear: [],
+    navs: [],
     gearVisible: false,
+    _phase: 0,
     get resist() { return (SHIPS[this.variantKey] || SHIPS.star).resist; },
     setThrust(f) {
       const s = 0.5 + clamp(f, 0, 1.6) * 2.2;
@@ -119,6 +152,18 @@ export function makeShip(initialVariant = 'star') {
     setGear(v) {
       this.gearVisible = v;
       this.gear.forEach((g) => { g.visible = v; });
+    },
+    // cosmetic per-frame motion: banking into turns, squash & stretch with
+    // acceleration, blinking nav lights — none of it touches flight physics
+    tick(dt, bank = 0, stretch = 0) {
+      this._phase += dt;
+      if (this.inner) {
+        this.inner.rotation.z = bank;
+        const s = clamp(stretch, -0.12, 0.18);
+        this.inner.scale.set(1 - s * 0.35, 1 - s * 0.35, 1 + s);
+      }
+      const on = Math.sin(this._phase * 5) > -0.35;
+      for (const n of this.navs) n.visible = on;
     },
     setVariant(key) {
       if (!SHIPS[key]) return;
