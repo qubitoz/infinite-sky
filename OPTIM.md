@@ -41,7 +41,14 @@ desperdiciado por frame.
 
 ---
 
-## Lote 2 — Bajar el GC al caminar entre fauna (riesgo medio)
+## Lote 2 — Bajar el GC al caminar entre fauna (riesgo medio) ✅ HECHO (2026-06-28)
+
+> Aplicado y verificado (perf-verifier APROBADO). On-foot 0.584→0.452 ms (~23%),
+> determinismo de `height3` idéntico (planet.js ni se tocó). **Desviación de criterio en
+> 2.1**: en vez de la ruta `low` para criaturas (que las haría flotar/hundirse hasta ~4u
+> por la octava de detalle ausente), se **amortizó** la frecuencia de muestreo usando la
+> ruta COMPLETA (cache `gUp`/`gFloorR`, re-muestreo cada ~0.13s con jitter) — mismo ahorro
+> de CPU, sin riesgo visual. Criaturas de tierra con gap ≤0.47u (no flotan).
 
 El escenario on-foot está limitado por asignaciones por frame + ruido.
 

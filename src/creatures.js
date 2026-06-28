@@ -279,6 +279,7 @@ export class CreatureManager {
       state: 'idle', t: 1 + Math.random() * 2,
       phase: Math.random() * 10, flash: 0,
       bodyScaleY: parts.body ? parts.body.scale.y : 1,
+      groundT: 0, gUp: null, gFloorR: 0, // amortized ground sampling (full path)
     };
     // face a random tangent direction immediately
     this.orient(c, smp.up, 1);
@@ -298,8 +299,18 @@ export class CreatureManager {
   }
 
   behave(c, dt, anchor, planet) {
-    const smp = planet.sampleAt(c.pos);
-    const up = smp.up;
+    // amortize grounding: re-sample the FULL height every ~0.13s (jittered so
+    // creatures don't all sample the same frame) instead of every frame. Keeps
+    // them on the visible full-res terrain (no low-path float) while cutting the
+    // per-creature noise cost ~5x.
+    c.groundT -= dt;
+    if (c.groundT <= 0 || !c.gUp) {
+      c.groundT = 0.12 + Math.random() * 0.05;
+      const smp = planet.sampleAt(c.pos);
+      if (!c.gUp) c.gUp = smp.up.clone(); else c.gUp.copy(smp.up);
+      c.gFloorR = smp.floorR;
+    }
+    const up = c.gUp;
     const dPlayer = c.pos.distanceTo(anchor);
     const tm = c.spec.temperament;
 
@@ -344,7 +355,7 @@ export class CreatureManager {
     if (a === 'hopper' && moving) lift = Math.abs(Math.sin(c.phase * 5)) * 0.55 * c.spec.size;
     if (a === 'flyer') lift = (2.4 + Math.sin(c.phase * 1.6) * 0.5) * c.spec.size;
     if (a === 'blob' && moving) lift = Math.abs(Math.sin(c.phase * 4)) * 0.2 * c.spec.size;
-    c.pos.copy(planet.center).addScaledVector(up, smp.floorR - 0.05 + lift);
+    c.pos.copy(planet.center).addScaledVector(up, c.gFloorR - 0.05 + lift);
     c.group.position.copy(c.pos);
     this.orient(c, up, moving ? 1 - Math.exp(-dt * 6) : 1 - Math.exp(-dt * 2));
 
@@ -386,12 +397,23 @@ export class CreatureManager {
     return hits;
   }
 
+  // top-k creatures within range, nearest first. In-place insertion keeps only
+  // ≤k entries (no map/filter/sort over the whole list, no per-creature wrapper
+  // objects, no sqrt). Called up to 3×/frame on foot.
   nearestList(anchor, range, k) {
-    return this.alive
-      .map((c) => ({ c, d: c.pos.distanceTo(anchor) }))
-      .filter((e) => e.d < range)
-      .sort((a, b) => a.d - b.d)
-      .slice(0, k)
-      .map((e) => e.c);
+    const out = this._nlOut || (this._nlOut = []);
+    const dists = this._nlDist || (this._nlDist = []);
+    out.length = 0; dists.length = 0;
+    const r2 = range * range;
+    for (const c of this.alive) {
+      const d2 = c.pos.distanceToSquared(anchor);
+      if (d2 >= r2) continue;
+      if (out.length >= k && d2 >= dists[out.length - 1]) continue;
+      let i = out.length;
+      while (i > 0 && dists[i - 1] > d2) i--;
+      out.splice(i, 0, c); dists.splice(i, 0, d2);
+      if (out.length > k) { out.pop(); dists.pop(); }
+    }
+    return out;
   }
 }

@@ -179,8 +179,15 @@ export class Radar {
   }
 
   draw(data, dt) {
-    if (this.mode === 'planet' && data.planet) this.drawPlanet(data.planet, dt);
+    // repaint the canvas at ~18 Hz instead of every frame — a minimap doesn't
+    // need 60 fps and the 580x580 path redraw is costly next to the WebGL frame.
+    // dt is accumulated so the sweep/pulse animations advance at the right rate.
+    this._acc = (this._acc || 0) + dt;
+    if (this._acc < 0.055) return;
+    const adt = this._acc;
+    this._acc = 0;
+    if (this.mode === 'planet' && data.planet) this.drawPlanet(data.planet, adt);
     else if (this.mode === 'system') this.drawSystem(data.system);
-    else if (this.mode === 'galaxy') this.drawGalaxy(data.galaxy, dt);
+    else if (this.mode === 'galaxy') this.drawGalaxy(data.galaxy, adt);
   }
 }

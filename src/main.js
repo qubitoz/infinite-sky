@@ -450,6 +450,8 @@ const _skyCol = new THREE.Color();
 const _dirToSun = new THREE.Vector3();
 const _vd = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
+const markerBuf = []; // reused HUD-marker objects (no per-frame allocation)
+const shortLabelOf = (b) => pick(b.label).replace(' WORLD', '').replace('MUNDO ', '');
 const VEG_KITS = ['forest', 'cacti', 'shroom', 'swamp', 'candy'];
 let harvestT = 0;
 let fireCD = 0;
@@ -934,78 +936,59 @@ const loop = () => {
 
   // ------- hud + audio
   if (started) {
-    const markers = [];
-    const shortLabel = (b) => pick(b.label).replace(' WORLD', '').replace('MUNDO ', '');
+    let mc = 0;
+    const addMk = (name, sub, pos, kind, disc, clamp) => {
+      let m = markerBuf[mc];
+      if (!m) { m = {}; markerBuf[mc] = m; }
+      m.name = name; m.sub = sub; m.pos = pos; m.kind = kind; m.discovered = disc; m.clamp = clamp || false;
+      mc++;
+    };
     // planet/star markers clutter the surface view — space flight only
     if (!onSurface && atmoF < 0.35) {
       for (const p of planets) {
         if (p === nearest && best < p.R * 1.2) continue;
-        markers.push({
-          name: p.def.name, sub: shortLabel(p.def.biome),
-          pos: p.center, kind: 'planet', discovered: p.discovered,
-        });
+        addMk(p.def.name, shortLabelOf(p.def.biome), p.center, 'planet', p.discovered);
       }
-      markers.push({ name: system.name, sub: t('mk.star'), pos: SUN_POS, kind: 'star', discovered: true });
+      addMk(system.name, t('mk.star'), SUN_POS, 'star', true);
     }
     // cosmic geode targets (flare cannon)
     for (const b of gadgetMgr.blips()) {
-      markers.push({ name: t('mk.geode'), sub: t('mk.geodeFire'), pos: b.pos, kind: 'pickup', discovered: true });
+      addMk(t('mk.geode'), t('mk.geodeFire'), b.pos, 'pickup', true);
     }
     // spaceport guidance (only while near the host planet; built === near)
     if (spaceport.isPortPlanet(nearest) && spaceport.built) {
-      markers.push({
-        name: t('mk.port'), sub: player.mode === 'fly' ? t('mk.portLand') : '',
-        pos: spaceport.anchor.pos, kind: 'port', discovered: true, clamp: true,
-      });
+      addMk(t('mk.port'), player.mode === 'fly' ? t('mk.portLand') : '', spaceport.anchor.pos, 'port', true, true);
       if (player.mode === 'walk') {
         for (const b of spaceport.blips()) {
           if (b.kind !== 'kiosk' || b.pos.distanceTo(player.bodyPos()) > 55) continue;
-          markers.push({
-            name: t('kiosk.' + b.id), sub: t('mk.kiosk'), pos: b.pos,
-            kind: 'pickup', discovered: true,
-          });
+          addMk(t('kiosk.' + b.id), t('mk.kiosk'), b.pos, 'pickup', true);
         }
       }
     }
     if (player.mode === 'walk') {
-      markers.push({
-        name: t('mk.ship'), sub: t('mk.board'), pos: player.pos,
-        kind: 'ship', discovered: true, clamp: true,
-      });
+      addMk(t('mk.ship'), t('mk.board'), player.pos, 'ship', true, true);
       const it = pickups.nearestWithin(player.bodyPos(), 70);
-      if (it) {
-        markers.push({
-          name: pick(MATERIALS[it.mat].name), sub: t('mk.collect'), pos: it.pos,
-          kind: 'pickup', discovered: true,
-        });
-      }
+      if (it) addMk(pick(MATERIALS[it.mat].name), t('mk.collect'), it.pos, 'pickup', true);
       for (const blip of sites.blips(nearest)) {
         if (blip.pos.distanceTo(player.bodyPos()) > 600) continue;
-        markers.push({
-          name: t(`mk.${blip.kind}`),
-          sub: blip.kind === 'vendor' ? t('mk.trade') : blip.kind === 'part' ? t('mk.collect') : '',
-          pos: blip.pos, kind: blip.kind === 'vendor' ? 'creature' : 'pickup', discovered: true,
-        });
+        addMk(t(`mk.${blip.kind}`),
+          blip.kind === 'vendor' ? t('mk.trade') : blip.kind === 'part' ? t('mk.collect') : '',
+          blip.pos, blip.kind === 'vendor' ? 'creature' : 'pickup', true);
       }
       for (const blip of mining.blips()) {
         if (blip.pos.distanceTo(player.bodyPos()) > 80) continue;
-        markers.push({
-          name: t('mk.ore'), sub: t('mk.mine'), pos: blip.pos,
-          kind: 'pickup', discovered: true,
-        });
+        addMk(t('mk.ore'), t('mk.mine'), blip.pos, 'pickup', true);
       }
     }
     if (faunaActive) {
       for (const c of creatureMgr.nearestList(player.bodyPos(), 95, 3)) {
         const known = discoveredFauna.has(c.spec.id);
-        markers.push({
-          name: known ? c.spec.name : '???',
-          sub: known ? t('mk.registered') : t('mk.scanC'),
-          pos: c.pos, kind: 'creature', discovered: known,
-        });
+        addMk(known ? c.spec.name : '???', known ? t('mk.registered') : t('mk.scanC'), c.pos, 'creature', known);
       }
     }
-    hud.update({ ...st, alt: best < nearest.R * 2 ? st.alt : null }, markers);
+    markerBuf.length = mc;
+    st.alt = best < nearest.R * 2 ? st.alt : null; // mutate st in place (no spread)
+    hud.update(st, markerBuf);
 
     // ---- radar
     if (radar.mode !== 'off') {
