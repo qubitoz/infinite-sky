@@ -100,7 +100,8 @@ CARTAS ESTELARES (revelar en radar), VESTUARIO (prendas), GADGETS (Opción B).
   Los otros 5 kioscos muestran "PRÓXIMAMENTE".
 - **Fase B ✓ HECHA** — ASTILLERO (compra las 4 naves climáticas con ★, equipa
   al comprar/tocar) + VESTUARIO (4 prendas premium + Conjunto Explorador, con ★).
-- **Fase C** — MEJORAS: sistema de niveles de nave (motor/pulso/escáner/bodega/láser).
+- **Fase C ✓ HECHA** — MEJORAS: niveles 0-3 de MOTOR (velocidad), MOTOR DE PULSO
+  (carga), ESCÁNER (alcance), LÁSER MINERO (velocidad), RECOLECTOR (radio), con ★.
 - **Fase D** — CARTAS ESTELARES (revelar planetas/vetas/ruinas) + GADGETS
   (láser minero, cañón de bengalas Opción B, dron de fotos) + **flora explotable**.
 - **Fase E** — pulido (temas de puerto, FX de llegada, música, logros).

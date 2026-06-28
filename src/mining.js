@@ -111,7 +111,7 @@ export class MiningManager {
   }
 
   // returns 'gem' each time a unit pops; 'done' handled internally
-  mine(dt, node, fromPos, trail) {
+  mine(dt, node, fromPos, trail, speed = 1) {
     this.target = node;
     this.beam.visible = true;
     const arr = this.beamGeo.attributes.position.array;
@@ -125,7 +125,7 @@ export class MiningManager {
     _u.y += 1;
     trail.spawn(_u, _t, node.color.r, node.color.g, node.color.b, 0.25 + Math.random() * 0.15);
 
-    this.progress += dt;
+    this.progress += dt * speed;
     if (this.progress >= 1.0) {
       this.progress = 0;
       node.units--;

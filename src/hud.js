@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { MATERIALS, PIECES, SELL_VALUE, reserveFor, outfitShopList } from './gear.js';
 import { SHIPS, PAINTS, SHIP_SHOP } from './ship.js';
+import { UPGRADES } from './upgrades.js';
 import { t, pick } from './i18n.js';
 
 const _v = new THREE.Vector3();
@@ -150,6 +151,20 @@ export class HUD {
         const meta = item.kind === 'set' ? t('kiosk.set') : t('slot.' + item.slot);
         const tag = owned ? t('kiosk.owned') : `${item.price} ★`;
         html += `<div class="piece${owned ? ' eq' : ''}"><b>${i + 1}</b> ${pick(item.name)} <span>${meta} · ${tag}</span></div>`;
+      });
+      html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
+      this.els.kiosk.innerHTML = html;
+      return;
+    }
+    if (kiosk.id === 'parts') {
+      const lv = ctx.upgrades || {};
+      html += `<div class="k-bal">★ ${inv.estelars}</div><div class="pieces">`;
+      UPGRADES.forEach((u, i) => {
+        const l = lv[u.id] || 0;
+        let dots = '';
+        for (let d = 0; d < u.max; d++) dots += `<span style="color:${d < l ? u.color : 'rgba(160,180,200,.3)'}">●</span>`;
+        const tag = l >= u.max ? t('kiosk.max') : `${u.prices[l]} ★`;
+        html += `<div class="piece${l >= u.max ? ' eq' : ''}"><b>${i + 1}</b> ${pick(u.name)} ${dots} <span>${pick(u.desc)} · ${tag}</span></div>`;
       });
       html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
       this.els.kiosk.innerHTML = html;

@@ -68,6 +68,7 @@ export class Player {
       pitch: 0, vRad: 0, fuel: 1, grounded: false, phase: 0,
     };
     this.avatar = null; // set by main after construction
+    this.upgrades = { engine: 0, pulse: 0, scanner: 0, laser: 0, collector: 0 };
     this.landAnim = null;
     this.hazardT = 0;
     this.bankSm = 0;
@@ -148,7 +149,7 @@ export class Player {
     // pulse drive
     const wantPulse = inp.key('KeyJ') || inp.key('Tab');
     if (wantPulse && atmoF < 0.12) {
-      this.pulse.spool = Math.min(this.pulse.spool + dt, 1);
+      this.pulse.spool = Math.min(this.pulse.spool + dt * (1 + 0.5 * this.upgrades.pulse), 1);
       if (this.pulse.spool > 0.85 && !this.pulse.active) {
         this.pulse.active = true;
         this.pulseKick = 1;
@@ -211,7 +212,7 @@ export class Player {
 
     // velocity
     _f.set(0, 0, -1).applyQuaternion(this.quat);
-    let target = this.throttle * 230 * (this.boosting ? 2.9 : 1);
+    let target = this.throttle * 230 * (this.boosting ? 2.9 : 1) * (1 + 0.25 * this.upgrades.engine);
     target = lerp(target, 24000, this.pulse.factor);
     _v1.copy(_f).multiplyScalar(target);
     if (inp.key('Space')) _v1.addScaledVector(_up.set(0, 1, 0).applyQuaternion(this.quat), 45);

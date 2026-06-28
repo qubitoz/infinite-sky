@@ -13,6 +13,7 @@ import { AudioSys } from './audio.js';
 import { buildSpeciesCatalog, CreatureManager } from './creatures.js';
 import { buildAvatar } from './avatar.js';
 import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager, outfitShopList } from './gear.js';
+import { UPGRADES, DEFAULT_UPGRADES, fx } from './upgrades.js';
 import { SiteManager } from './sites.js';
 import { SpaceportManager } from './spaceport.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
@@ -115,7 +116,12 @@ const spaceport = new SpaceportManager(scene);
 spaceport.init(planets, seed);
 const _beamFrom = new THREE.Vector3();
 let currentKiosk = null;
-const kioskCtx = () => ({ ownedShips, activeShip: ship.variantKey });
+const upgrades = { ...DEFAULT_UPGRADES };
+player.upgrades = upgrades; // ship-stat levels read in player.updateFly
+const saveUpgrades = () => {
+  try { localStorage.setItem(`infsky-upgrades-${profile}`, JSON.stringify(upgrades)); } catch { /* fine */ }
+};
+const kioskCtx = () => ({ ownedShips, activeShip: ship.variantKey, upgrades });
 function awardStelars(n, reason) {
   inventory.earn(n);
   hud.setStelars(inventory.estelars);
@@ -239,6 +245,8 @@ function loadSaves() {
   try {
     landedSet = new Set(JSON.parse(localStorage.getItem(`infsky-landed-${profile}-${seed}`) || '[]'));
   } catch { landedSet = new Set(); }
+  Object.assign(upgrades, DEFAULT_UPGRADES);
+  try { Object.assign(upgrades, JSON.parse(localStorage.getItem(`infsky-upgrades-${profile}`) || '{}')); } catch { /* fresh */ }
   hud.setWorlds(discoveredCount(), planets.length);
   hud.setSpecies(discoveredFauna.size, allSpecies.length);
   fetchFirstBy(seed).then((m) => { firstBy = m; });
@@ -494,6 +502,20 @@ const loop = () => {
             } else { hud.toast(t('toast.poor')); audio.blip(220); }
             hud.renderKiosk(currentKiosk, inventory, kioskCtx());
           }
+        } else if (kid === 'parts') {
+          const u = UPGRADES[i - 1];
+          if (u) {
+            const lvl = upgrades[u.id] || 0;
+            if (lvl >= u.max) { /* maxed */ }
+            else if (inventory.spend(u.prices[lvl])) {
+              upgrades[u.id] = lvl + 1;
+              saveUpgrades();
+              hud.setStelars(inventory.estelars);
+              hud.toast(t('toast.upgraded'), `${pick(u.name)} ${t('kiosk.lvl')} ${lvl + 1}`);
+              hud.celebrate(); audio.jingle();
+            } else { hud.toast(t('toast.poor')); audio.blip(220); }
+            hud.renderKiosk(currentKiosk, inventory, kioskCtx());
+          }
         } else if (kid === 'clothing') {
           const item = outfitShopList()[i - 1];
           if (item) {
@@ -571,7 +593,7 @@ const loop = () => {
     if (input.pressed('KeyC')) {
       hud.scanFx(); audio.blip(1100);
       let fresh = 0;
-      for (const c of creatureMgr.scan(camera, 85)) {
+      for (const c of creatureMgr.scan(camera, 85 * fx.scanner(upgrades.scanner))) {
         if (!discoveredFauna.has(c.spec.id)) {
           discoveredFauna.add(c.spec.id);
           fresh++;
@@ -654,7 +676,7 @@ const loop = () => {
 
     const part = sites.nearestPart(nearest, body, 4.5);
     if (part) collectPartItem(nearest, part);
-    const it = pickups.nearestWithin(body, 3.5);
+    const it = pickups.nearestWithin(body, 3.5 * fx.collector(upgrades.collector));
     if (it) collectPickupItem(it);
     if (sites.ruinNear(nearest, body, 8)) {
       sites.claimRuin(nearest);
@@ -672,7 +694,7 @@ const loop = () => {
         : mining.pickTarget(body, player.walk.fwd, 15);
       if (node) {
         _beamFrom.copy(body).addScaledVector(player.walk.fwd, 0.8);
-        const got = mining.mine(dt, node, _beamFrom, trail);
+        const got = mining.mine(dt, node, _beamFrom, trail, fx.laser(upgrades.laser));
         lasering = true;
         if (got === 'gem') {
           const n = inventory.add('gem');
