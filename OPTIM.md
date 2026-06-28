@@ -71,17 +71,27 @@ El escenario on-foot está limitado por asignaciones por frame + ruido.
 
 ---
 
-## Lote 3 — Bajar el fill-rate del planeta (riesgo medio) — el frame más pesado
+## Lote 3 — Bajar el fill-rate del planeta (riesgo medio) — el frame más pesado ✅ HECHO (2026-06-28)
+
+> Aplicado y verificado (perf-verifier APROBADO). Cambio puramente de fragment shader del
+> agua (`shaders.js`) + flag de calidad en `planet.js`; **no toca `height3`/`sampleAt`** →
+> determinismo de 8 muestras byte-idéntico al baseline. Verificado en preview: HQ se ve
+> igual que antes (vuelo bajo nocturno); LQ soleado compone bien agua + piso marino +
+> bajíos + nubes + atmósfera, sin agua negra ni z-fighting; consola sin errores/warnings.
+> El verificador confirmó que NO hay contenido sumergido que `depthWrite:true` pueda
+> oclultar (criaturas se descartan sobre agua, recursos/sitios son "land only").
 
 Vuelo bajo sobre mundo lush = atmósfera (Additive) + nubes (DoubleSide) + agua (shader
 con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
 
-- **3.1 — Uniform de calidad en el agua** (`shaders.js:~142`): en LQ/touch, 1 octava de
-  snoise en vez de 3 y early-out cuando `fade` es bajo.
-- **3.2 — Agua a `depthWrite:true`** (es casi opaca, alpha 0.82–1.0): rechaza el terreno
-  detrás, gran ahorro de overdraw.
-- **3.3 — Abaratar el specular** `pow(...,110.0)` del agua.
-- **3.4 — Nubes `FrontSide`** (ya en 1.5).
+- **3.1 ✅ — Uniform de calidad en el agua** (`shaders.js`): en LQ/touch, **1 octava** de
+  snoise en vez de 3, y **early-out** (`if(fade>0.02)`) que salta el ruido de normal en
+  agua lejana (donde `dn *= fade` ya era ≈0) en ambas calidades.
+- **3.2 ✅ — Agua a `depthWrite:true`** (alpha 0.82–1.0, casi opaca): rechaza el piso
+  marino y los shells de nube/atmósfera detrás, gran ahorro de overdraw en sobrevuelos.
+- **3.3 ✅ — Specular abaratado**: en LQ se elimina por completo el `pow(...,110.0)`
+  (`spec = 0.0`); en HQ se conserva.
+- **3.4 ✅ — Nubes `FrontSide`**: ya cubierto en el Lote 1.
 
 ---
 

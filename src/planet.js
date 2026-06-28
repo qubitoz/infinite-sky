@@ -103,6 +103,7 @@ export class Planet {
     this.subC = new THREE.Color(biome.sea && biome.sea.lava ? '#1a0e08' : '#22383e');
 
     this.RES = qual.res;
+    this.lowQ = qual.aa === false; // touch/LQ render path — cheaper water shader
     this.faceArc = this.R * Math.PI / 2;
     this.maxLevel = clamp(Math.round(Math.log2(this.faceArc / (this.RES - 1) / 1.7)), 4, 8);
     this.propLevel = clamp(this.maxLevel - 1, 3, 7);
@@ -227,7 +228,7 @@ export class Planet {
   buildShells() {
     const biome = this.def.biome;
     if (this.hasSea) {
-      this.waterMat = makeWaterMaterial(biome.sea.deep, biome.sea.shallow, biome.sea.lava);
+      this.waterMat = makeWaterMaterial(biome.sea.deep, biome.sea.shallow, biome.sea.lava, this.lowQ);
       this.waterMat.uniforms.uSunDir.value.copy(this.sunDir);
       const water = new THREE.Mesh(new THREE.SphereGeometry(this.seaR, 96, 64), this.waterMat);
       water.renderOrder = 1;

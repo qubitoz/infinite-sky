@@ -90,7 +90,7 @@ export function makeAtmosphereMaterial(colorHex, strength) {
   });
 }
 
-export function makeWaterMaterial(deepHex, shallowHex, lava) {
+export function makeWaterMaterial(deepHex, shallowHex, lava, lowQ = false) {
   const mat = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
@@ -142,15 +142,26 @@ export function makeWaterMaterial(deepHex, shallowHex, lava) {
         } else {
           float t = uTime * 0.5;
           vec3 q = vW * 0.09;
-          vec3 dn = vec3(
-            snoise(q + vec3(t, 0.0, 0.0)),
-            snoise(q.yzx + vec3(0.0, t, 7.3)),
-            snoise(q.zxy - vec3(t, 3.1, 0.0))) * 0.16 * fade;
-          vec3 n2 = normalize(n + dn);
+          // ripple normal: skip the noise entirely once the surface is far (fade≈0,
+          // where dn would vanish anyway), and on the low-quality path use a single
+          // noise octave instead of three — the fragment cost here dominates lush flyovers
+          vec3 n2 = n;
+          if (fade > 0.02) {
+            ${lowQ
+            ? `float s = snoise(q + vec3(t, 0.0, 0.0));
+            vec3 dn = vec3(s, s * 0.55, -s * 0.8) * 0.13 * fade;`
+            : `vec3 dn = vec3(
+              snoise(q + vec3(t, 0.0, 0.0)),
+              snoise(q.yzx + vec3(0.0, t, 7.3)),
+              snoise(q.zxy - vec3(t, 3.1, 0.0))) * 0.16 * fade;`}
+            n2 = normalize(n + dn);
+          }
           vec3 viewDir = normalize(cameraPosition - vW);
           float fres = pow(1.0 - clamp(dot(n2, viewDir), 0.0, 1.0), 3.0);
           float ndl = clamp(dot(n2, uSunDir), 0.0, 1.0);
-          float spec = pow(clamp(dot(reflect(-uSunDir, n2), viewDir), 0.0, 1.0), 110.0) * 1.6 * ndl;
+          ${lowQ
+            ? `float spec = 0.0;`
+            : `float spec = pow(clamp(dot(reflect(-uSunDir, n2), viewDir), 0.0, 1.0), 110.0) * 1.6 * ndl;`}
           col = mix(uDeep, uShallow, fres * 0.65 + 0.12) * (0.18 + 0.92 * ndl) + spec;
           alpha = 0.82 + fres * 0.18;
         }
@@ -158,7 +169,9 @@ export function makeWaterMaterial(deepHex, shallowHex, lava) {
         #include <fog_fragment>
       }`,
     transparent: true,
-    depthWrite: false,
+    // water is near-opaque (alpha 0.82–1.0); writing depth lets it early-Z reject the
+    // sea floor and the cloud/atmosphere shells behind it — the big lush-flyover overdraw
+    depthWrite: true,
     fog: true,
   });
   mat.uniforms.uTime = TIME;
