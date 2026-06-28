@@ -98,7 +98,8 @@ CARTAS ESTELARES (revelar en radar), VESTUARIO (prendas), GADGETS (Opción B).
   kioscos), moneda estelars en el HUD, kiosco de CAMBIO funcional, bonos por
   descubrir, radar auto al aterrizar, ⊕ en radar de sistema, marcadores guía.
   Los otros 5 kioscos muestran "PRÓXIMAMENTE".
-- **Fase B** — ASTILLERO (comprar naves con ★) + VESTUARIO (sets completos).
+- **Fase B ✓ HECHA** — ASTILLERO (compra las 4 naves climáticas con ★, equipa
+  al comprar/tocar) + VESTUARIO (4 prendas premium + Conjunto Explorador, con ★).
 - **Fase C** — MEJORAS: sistema de niveles de nave (motor/pulso/escáner/bodega/láser).
 - **Fase D** — CARTAS ESTELARES (revelar planetas/vetas/ruinas) + GADGETS
   (láser minero, cañón de bengalas Opción B, dron de fotos) + **flora explotable**.

@@ -3,8 +3,8 @@
 // All visible text routes through i18n (t / pick) and re-renders on language
 // switch via refreshLang().
 import * as THREE from 'three';
-import { MATERIALS, PIECES, SELL_VALUE, reserveFor } from './gear.js';
-import { SHIPS, PAINTS } from './ship.js';
+import { MATERIALS, PIECES, SELL_VALUE, reserveFor, outfitShopList } from './gear.js';
+import { SHIPS, PAINTS, SHIP_SHOP } from './ship.js';
 import { t, pick } from './i18n.js';
 
 const _v = new THREE.Vector3();
@@ -111,12 +111,12 @@ export class HUD {
   }
 
   // open a kiosk panel for the given category (auto-closed by walking away)
-  openKiosk(kiosk, inv) {
+  openKiosk(kiosk, inv, ctx = {}) {
     this.closePanels();
     this.kioskOn = true;
-    this._kioskArgs = [kiosk, inv];
+    this._kioskArgs = [kiosk, inv, ctx];
     this.els.kiosk.classList.add('on');
-    this.renderKiosk(kiosk, inv);
+    this.renderKiosk(kiosk, inv, ctx);
   }
 
   closeKiosk() {
@@ -125,9 +125,36 @@ export class HUD {
     this.els.kiosk.classList.remove('on');
   }
 
-  renderKiosk(kiosk, inv) {
-    this._kioskArgs = [kiosk, inv];
+  renderKiosk(kiosk, inv, ctx = {}) {
+    this._kioskArgs = [kiosk, inv, ctx];
+    const sw = (c) => `<i class="sw" style="background:${c}"></i>`;
     let html = `<h3><span class="sw" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${kiosk.color};margin-right:8px;vertical-align:-1px"></span>${t('kiosk.' + kiosk.id)}</h3>`;
+    if (kiosk.id === 'ships') {
+      html += `<div class="k-bal">★ ${inv.estelars}</div><div class="pieces">`;
+      SHIP_SHOP.forEach((e, i) => {
+        const s = SHIPS[e.key];
+        const owned = (ctx.ownedShips || []).includes(e.key);
+        const active = e.key === ctx.activeShip;
+        const tag = active ? t('kiosk.active') : owned ? t('kiosk.owned') : `${e.price} ★`;
+        const resist = s.resist ? t('haz.' + s.resist) : '';
+        html += `<div class="piece${active ? ' eq' : ''}"><b>${i + 1}</b> ${sw(s.hull)}${pick(s.name)} <span>${resist}${resist ? ' · ' : ''}${tag}</span></div>`;
+      });
+      html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
+      this.els.kiosk.innerHTML = html;
+      return;
+    }
+    if (kiosk.id === 'clothing') {
+      html += `<div class="k-bal">★ ${inv.estelars}</div><div class="pieces">`;
+      outfitShopList().forEach((item, i) => {
+        const owned = item.kind === 'set' ? inv.ownsSet(item) : inv.ownsVendor(item.id);
+        const meta = item.kind === 'set' ? t('kiosk.set') : t('slot.' + item.slot);
+        const tag = owned ? t('kiosk.owned') : `${item.price} ★`;
+        html += `<div class="piece${owned ? ' eq' : ''}"><b>${i + 1}</b> ${pick(item.name)} <span>${meta} · ${tag}</span></div>`;
+      });
+      html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
+      this.els.kiosk.innerHTML = html;
+      return;
+    }
     if (kiosk.id === 'exchange') {
       html += `<div class="k-bal">★ ${inv.estelars}</div>`;
       const list = inv.sellableList();

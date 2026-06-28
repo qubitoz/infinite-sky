@@ -23,6 +23,15 @@ export const SHIPS = {
   prism: { name: { en: 'PRISMWING', es: 'PRISMA' }, resist: 'storm', hull: '#7a4f9e', accent: '#e08cff', glow: '#e0b3ff' },
 };
 
+// climate ships buyable at the spaceport SHIPYARD kiosk (estelars) — an
+// alternative to finding & repairing a wreck
+export const SHIP_SHOP = [
+  { key: 'frost', price: 120 },
+  { key: 'ember', price: 120 },
+  { key: 'mist', price: 140 },
+  { key: 'prism', price: 160 },
+];
+
 function buildInto(group, variantKey, out) {
   while (group.children.length) group.remove(group.children[0]);
   const v = SHIPS[variantKey] || SHIPS.star;

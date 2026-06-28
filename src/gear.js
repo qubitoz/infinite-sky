@@ -62,6 +62,24 @@ export function vendorPieceFor(kit, rand = Math.random) {
   return fits[(rand() * fits.length) | 0];
 }
 
+// spaceport OUTFITTER catalog — bought with estelars (★), owned forever
+export const SHOP_PIECES = [
+  { id: 'pilothelm', name: { en: 'PILOT HELM', es: 'CASCO DE PILOTO' }, slot: 'head', price: 45 },
+  { id: 'crownstar', name: { en: 'STAR CROWN', es: 'CORONA ESTRELLA' }, slot: 'head', price: 55 },
+  { id: 'visorhud', name: { en: 'HUD VISOR', es: 'VISOR HUD' }, slot: 'face', price: 45 },
+  { id: 'wingpack', name: { en: 'WING PACK', es: 'MOCHILA ALADA' }, slot: 'back', price: 70 },
+];
+export const SHOP_SETS = [
+  { id: 'explorerset', name: { en: 'EXPLORER SET', es: 'CONJUNTO EXPLORADOR' }, price: 120, pieces: ['pilothelm', 'visorhud', 'wingpack'] },
+];
+// combined order used by both the HUD render and the buy handler
+export function outfitShopList() {
+  return [
+    ...SHOP_SETS.map((s) => ({ ...s, kind: 'set' })),
+    ...SHOP_PIECES.map((p) => ({ ...p, kind: 'piece' })),
+  ];
+}
+
 // ------------------------------------------------------------ piece meshes
 const _geo = {
   cone: new THREE.ConeGeometry(1, 1, 6),
@@ -196,6 +214,30 @@ export function buildPiece(id) {
       add(g, _geo.sphere, pm('#9adf5a'), 0.05, 0.03, 0.05, 0, -0.33, 0.12);
       break;
     }
+    case 'pilothelm': {
+      add(g, _geo.sphere, pm('#cfd6dc', { metalness: 0.6, roughness: 0.4 }), 0.34, 0.27, 0.34, 0, 0.12, 0);
+      add(g, _geo.box, pm('#16222e', { metalness: 0.85, roughness: 0.15, emissive: '#1c3850', emissiveIntensity: 0.45 }), 0.5, 0.13, 0.12, 0, 0.12, -0.2);
+      add(g, _geo.cyl, pm('#5ef2d6', { emissive: '#5ef2d6', emissiveIntensity: 0.7 }), 0.025, 0.2, 0.025, 0.22, 0.34, 0);
+      break;
+    }
+    case 'crownstar': {
+      add(g, _geo.torus, pm('#caa44c', { metalness: 0.7, roughness: 0.25, emissive: '#cc8800', emissiveIntensity: 0.25 }), 0.26, 0.26, 0.26, 0, 0.02, 0, Math.PI / 2);
+      add(g, _geo.oct, pm('#fff0b0', { emissive: '#ffd34d', emissiveIntensity: 0.85, roughness: 0.1 }), 0.13, 0.18, 0.13, 0, 0.22, -0.18);
+      break;
+    }
+    case 'visorhud': {
+      add(g, _geo.box, pm('#16222e', { metalness: 0.8, roughness: 0.2 }), 0.42, 0.13, 0.07, 0, 0.02, 0);
+      add(g, _geo.box, pm('#5ef2d6', { emissive: '#5ef2d6', emissiveIntensity: 0.8, roughness: 0.2 }), 0.34, 0.05, 0.04, 0, 0.03, -0.03);
+      break;
+    }
+    case 'wingpack': {
+      const m = pm('#3a4450', { metalness: 0.6, roughness: 0.4 });
+      add(g, _geo.box, m, 0.32, 0.42, 0.18, 0, -0.1, 0);
+      const w = pm('#7fc4ff', { emissive: '#7fc4ff', emissiveIntensity: 0.55, roughness: 0.3 });
+      add(g, _geo.box, w, 0.55, 0.1, 0.05, -0.36, -0.05, 0, 0, 0, 0.45);
+      add(g, _geo.box, w, 0.55, 0.1, 0.05, 0.36, -0.05, 0, 0, 0, -0.45);
+      break;
+    }
     default: return null;
   }
   return g;
@@ -265,7 +307,25 @@ export class Inventory {
     return [
       ...PIECES.filter((p) => this.unlocked(p)),
       ...VENDOR_PIECES.filter((p) => this.ownsVendor(p.id)),
+      ...SHOP_PIECES.filter((p) => this.ownsVendor(p.id)),
     ];
+  }
+
+  // ---- estelar purchases (outfitter)
+  buyPiece(piece) {
+    if (this.ownsVendor(piece.id)) return 'owned';
+    if (!this.spend(piece.price)) return 'poor';
+    this.vendor.push(piece.id);
+    this.save();
+    return 'ok';
+  }
+  ownsSet(set) { return set.pieces.every((id) => this.ownsVendor(id)); }
+  buySet(set) {
+    if (this.ownsSet(set)) return 'owned';
+    if (!this.spend(set.price)) return 'poor';
+    for (const id of set.pieces) if (!this.ownsVendor(id)) this.vendor.push(id);
+    this.save();
+    return 'ok';
   }
   toggleEquip(piece) {
     this.equipped[piece.slot] = this.equipped[piece.slot] === piece.id ? null : piece.id;

@@ -5,14 +5,14 @@ import { makeSystem } from './universe.js';
 import { Planet, processBuildQueue, pendingBuilds } from './planet.js';
 import { TIME } from './shaders.js';
 import { makeStarfield, makeNebulae, makeSun, makeAsteroidBelt, WarpField, EngineTrail } from './effects.js';
-import { makeShip, SHIPS, PAINTS } from './ship.js';
+import { makeShip, SHIPS, PAINTS, SHIP_SHOP } from './ship.js';
 import { MiningManager } from './mining.js';
 import { Player } from './player.js';
 import { HUD } from './hud.js';
 import { AudioSys } from './audio.js';
 import { buildSpeciesCatalog, CreatureManager } from './creatures.js';
 import { buildAvatar } from './avatar.js';
-import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager } from './gear.js';
+import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager, outfitShopList } from './gear.js';
 import { SiteManager } from './sites.js';
 import { SpaceportManager } from './spaceport.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
@@ -115,6 +115,7 @@ const spaceport = new SpaceportManager(scene);
 spaceport.init(planets, seed);
 const _beamFrom = new THREE.Vector3();
 let currentKiosk = null;
+const kioskCtx = () => ({ ownedShips, activeShip: ship.variantKey });
 function awardStelars(n, reason) {
   inventory.earn(n);
   hud.setStelars(inventory.estelars);
@@ -465,7 +466,8 @@ const loop = () => {
     for (let i = 1; i <= 9; i++) {
       if (!input.pressed(`Digit${i}`)) continue;
       if (hud.kioskOn) {
-        if (currentKiosk && currentKiosk.id === 'exchange') {
+        const kid = currentKiosk && currentKiosk.id;
+        if (kid === 'exchange') {
           const mat = inventory.sellableList()[i - 1];
           if (mat) {
             const gain = inventory.sellAll(mat);
@@ -473,6 +475,36 @@ const loop = () => {
             hud.toast(`${t('toast.sold')} ${pick(MATERIALS[mat].name)}`, `+${gain} ★`);
             hud.renderKiosk(currentKiosk, inventory);
             audio.blip(990);
+          }
+        } else if (kid === 'ships') {
+          const e = SHIP_SHOP[i - 1];
+          if (e) {
+            if (ownedShips.includes(e.key)) {
+              if (e.key !== ship.variantKey) {
+                ship.setVariant(e.key); applyPaint(); saveShips();
+                hud.toast(t('toast.shipEquipped'), pick(SHIPS[e.key].name));
+                audio.blip(700);
+              }
+            } else if (inventory.spend(e.price)) {
+              ownedShips.push(e.key);
+              ship.setVariant(e.key); applyPaint(); saveShips();
+              hud.setStelars(inventory.estelars);
+              hud.toast(t('toast.bought'), pick(SHIPS[e.key].name));
+              hud.celebrate(); audio.jingle();
+            } else { hud.toast(t('toast.poor')); audio.blip(220); }
+            hud.renderKiosk(currentKiosk, inventory, kioskCtx());
+          }
+        } else if (kid === 'clothing') {
+          const item = outfitShopList()[i - 1];
+          if (item) {
+            const r = item.kind === 'set' ? inventory.buySet(item) : inventory.buyPiece(item);
+            if (r === 'ok') {
+              hud.setStelars(inventory.estelars);
+              hud.toast(t('toast.bought'), `${pick(item.name)} — ${t('toast.wear')}`);
+              hud.celebrate(); audio.jingle();
+            } else if (r === 'poor') { hud.toast(t('toast.poor')); audio.blip(220); }
+            if (hud.outfitOn) hud.renderOutfit(inventory);
+            hud.renderKiosk(currentKiosk, inventory, kioskCtx());
           }
         }
       } else if (hud.outfitOn) {
@@ -616,7 +648,7 @@ const loop = () => {
     const kiosk = spaceport.isPortPlanet(nearest) ? spaceport.activeKiosk(body) : null;
     if (kiosk !== currentKiosk) {
       currentKiosk = kiosk;
-      if (kiosk) { hud.openKiosk(kiosk, inventory); audio.blip(620); }
+      if (kiosk) { hud.openKiosk(kiosk, inventory, kioskCtx()); audio.blip(620); }
       else if (hud.kioskOn) hud.closeKiosk();
     }
 
