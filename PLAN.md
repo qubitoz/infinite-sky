@@ -76,6 +76,34 @@ como aviso):
   partículas al correr).
 - Pequeña base/campamento decorable como meta de largo plazo.
 
+## Fase 6 — Puertos espaciales (EN CURSO)
+
+Estructuras modernas en un planeta seguro por sistema, sin criaturas: solo
+**kioscos de pantalla automática**. Le dan propósito económico a explorar/minar.
+
+**Decisiones bloqueadas (2026-06-12):**
+- "Armas" = **Opción B** (acción suave sin daño: disparar a asteroides/blancos
+  por premios, burbujas que rebotan sin lastimar) + **gadgets**.
+- **Flora explotable** por materiales usando gadgets.
+- Moneda universal = **estelars (★)**.
+
+**Economía:** se ganan estelars vendiendo materiales/gemas en el kiosco de
+CAMBIO y como bono por descubrir (especie +15, mundo +25, fauna de planeta +50,
+sistema +100). Se gastan en los kioscos. Nunca se pierden por error.
+
+**Los 6 kioscos:** CAMBIO (vender), ASTILLERO (naves), MEJORAS (partes de nave),
+CARTAS ESTELARES (revelar en radar), VESTUARIO (prendas), GADGETS (Opción B).
+
+- **Fase A ✓ HECHA** — estructura del puerto (plataforma, cúpula, baliza, 6
+  kioscos), moneda estelars en el HUD, kiosco de CAMBIO funcional, bonos por
+  descubrir, radar auto al aterrizar, ⊕ en radar de sistema, marcadores guía.
+  Los otros 5 kioscos muestran "PRÓXIMAMENTE".
+- **Fase B** — ASTILLERO (comprar naves con ★) + VESTUARIO (sets completos).
+- **Fase C** — MEJORAS: sistema de niveles de nave (motor/pulso/escáner/bodega/láser).
+- **Fase D** — CARTAS ESTELARES (revelar planetas/vetas/ruinas) + GADGETS
+  (láser minero, cañón de bengalas Opción B, dron de fotos) + **flora explotable**.
+- **Fase E** — pulido (temas de puerto, FX de llegada, música, logros).
+
 ## Fase 5 — Social
 
 - Catálogo global con "1er descubridor" (cliente ya listo; activar DB).

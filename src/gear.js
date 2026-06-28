@@ -42,6 +42,20 @@ export const VENDOR_PIECES = [
   { id: 'gemtiara', name: { en: 'GEM TIARA', es: 'TIARA DE GEMAS' }, slot: 'head', cost: { gem: 5 }, kits: ['forest', 'crystal', 'frost', 'candy'] },
   { id: 'fruitcharm', name: { en: 'FRUIT CHARM', es: 'AMULETO FRUTAL' }, slot: 'back', cost: { fruit: 4, leaf: 2 }, kits: ['forest', 'shroom', 'swamp', 'cacti'] },
 ];
+// estelars (★) earned per unit when sold at a spaceport EXCHANGE kiosk
+export const SELL_VALUE = {
+  leaf: 2, flower: 2, branch: 2, mud: 2,
+  bone: 4, ice: 4, obsidian: 4, spore: 4,
+  fruit: 5, crystal: 6, gem: 10,
+};
+
+// gathered outfit pieces unlock by live material count, so selling below a
+// threshold would silently un-collect them. Reserve that much of each material
+// — the EXCHANGE only ever sells the surplus, so nothing is ever lost.
+const RESERVE = {};
+for (const _p of PIECES) RESERVE[_p.mat] = Math.max(RESERVE[_p.mat] || 0, _p.need);
+export function reserveFor(mat) { return RESERVE[mat] || 0; }
+
 export function vendorPieceFor(kit, rand = Math.random) {
   const fits = VENDOR_PIECES.filter((p) => p.kits.includes(kit));
   if (!fits.length) return VENDOR_PIECES[0];
@@ -193,6 +207,7 @@ export class Inventory {
     this.counts = {};
     this.vendor = [];
     this.equipped = { head: null, face: null, back: null };
+    this.estelars = 0;
     this.key = null;
   }
 
@@ -203,6 +218,7 @@ export class Inventory {
       this.counts = d.counts || {};
       this.vendor = d.vendor || [];
       this.equipped = Object.assign({ head: null, face: null, back: null }, d.equipped);
+      this.estelars = d.estelars || 0;
     } catch { /* fresh */ }
     if (!this.vendor) this.vendor = [];
   }
@@ -211,12 +227,30 @@ export class Inventory {
     try {
       localStorage.setItem(this.key, JSON.stringify({
         counts: this.counts, equipped: this.equipped, vendor: this.vendor,
+        estelars: this.estelars,
       }));
     } catch { /* unavailable */ }
   }
 
   add(mat) { this.counts[mat] = (this.counts[mat] || 0) + 1; this.save(); return this.counts[mat]; }
   count(m) { return this.counts[m] || 0; }
+
+  // ---- estelars economy
+  earn(n) { this.estelars += n; this.save(); return this.estelars; }
+  spend(n) { if (this.estelars < n) return false; this.estelars -= n; this.save(); return true; }
+  surplus(mat) { return Math.max(0, this.count(mat) - reserveFor(mat)); }
+  sellAll(mat) {
+    const s = this.surplus(mat);
+    if (!s) return 0;
+    const gain = s * (SELL_VALUE[mat] || 1);
+    this.counts[mat] -= s;
+    this.estelars += gain;
+    this.save();
+    return gain;
+  }
+  sellableList() {
+    return Object.keys(SELL_VALUE).filter((m) => this.surplus(m) > 0);
+  }
   unlocked(piece) { return this.count(piece.mat) >= piece.need; }
   ownsVendor(id) { return (this.vendor || []).includes(id); }
   canAfford(piece) { return Object.entries(piece.cost).every(([m, n]) => this.count(m) >= n); }

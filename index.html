@@ -75,6 +75,8 @@
   #sysname{font-size:14px;letter-spacing:6px;color:var(--dim)}
   #worlds{font-size:12px;letter-spacing:3px;color:var(--acc);margin-top:2px}
   #species{font-size:11px;letter-spacing:3px;color:#9fe87f;margin-top:1px}
+  #estelars{font-family:'Orbitron';font-size:13px;letter-spacing:3px;color:#ffd34d;margin-top:3px;
+    text-shadow:0 0 8px rgba(255,211,77,.5)}
 
   /* toasts */
   #toasts{position:absolute;top:84px;left:50%;transform:translateX(-50%);text-align:center;width:600px}
@@ -162,17 +164,22 @@
     100%{transform:translateY(105vh) rotate(660deg);opacity:.6}}
 
   /* hangar / trade reuse outfit styles */
-  #hangar,#trade{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:480px;
+  #hangar,#trade,#kiosk{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:480px;
     max-height:70vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
     padding:20px 26px;display:none}
-  #hangar.on,#trade.on{display:block}
-  #hangar h3,#trade h3{font-family:'Orbitron';font-size:16px;letter-spacing:4px;color:var(--acc2);margin-bottom:10px}
-  #hangar .piece,#trade .piece{display:flex;justify-content:space-between;font-size:14px;letter-spacing:1.5px;
+  #hangar.on,#trade.on,#kiosk.on{display:block}
+  #hangar h3,#trade h3,#kiosk h3{font-family:'Orbitron';font-size:16px;letter-spacing:4px;color:var(--acc2);margin-bottom:10px}
+  #hangar .piece,#trade .piece,#kiosk .piece{display:flex;justify-content:space-between;font-size:14px;letter-spacing:1.5px;
     padding:6px 8px;border-top:1px solid rgba(170,220,255,.1)}
-  #hangar .piece b,#trade .piece b{color:#ffd97a;margin-right:10px;font-weight:700}
-  #hangar .piece span,#trade .piece span{color:var(--dim);font-size:11px;letter-spacing:2px}
+  #hangar .piece b,#trade .piece b,#kiosk .piece b{color:#ffd97a;margin-right:10px;font-weight:700}
+  #hangar .piece span,#trade .piece span,#kiosk .piece span{color:var(--dim);font-size:11px;letter-spacing:2px}
   #hangar .piece.eq,#trade .piece.eq{background:rgba(94,242,214,.1)}
-  #hangar .o-hint,#trade .o-hint{margin-top:12px;font-size:11px;letter-spacing:2px;color:var(--dim)}
+  #hangar .o-hint,#trade .o-hint,#kiosk .o-hint{margin-top:12px;font-size:11px;letter-spacing:2px;color:var(--dim)}
+  #kiosk .k-bal{font-family:'Orbitron';font-size:14px;letter-spacing:2px;color:#ffd34d;margin-bottom:8px}
+  #kiosk .piece i.sw{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:-1px}
+  #kiosk .k-soon{font-family:'Orbitron';font-size:22px;letter-spacing:5px;color:var(--acc);text-align:center;
+    padding:18px 0 10px;opacity:.85}
+  #kiosk .k-tease{font-size:14px;letter-spacing:1px;color:var(--ink);text-align:center}
 
   /* radar */
   #radarwrap{position:absolute;right:26px;bottom:235px;padding:12px;display:none}
@@ -229,6 +236,7 @@
     #sysname{font-size:10px;letter-spacing:3px}
     #worlds{font-size:9.5px;letter-spacing:2px}
     #species{font-size:9px;letter-spacing:2px}
+    #estelars{font-size:11px;letter-spacing:2px;margin-top:1px}
     #toasts{width:92vw;top:52px}
     .toast{padding:6px 14px}
     .toast .t-main{font-size:13px;letter-spacing:2px}
@@ -246,7 +254,7 @@
     #langbtn{top:6px;right:8px;font-size:10px;padding:5px 10px;letter-spacing:2px}
     body.touch.playing #langbtn{display:none}
     #hint{font-size:10px;max-width:60vw;bottom:8px;left:8px;line-height:1.7}
-    #help,#catalog,#outfit,#hangar,#trade{width:min(94vw,560px);max-height:84vh;padding:12px 14px}
+    #help,#catalog,#outfit,#hangar,#trade,#kiosk{width:min(94vw,560px);max-height:84vh;padding:12px 14px}
     .sp-card{width:124px;padding:5px 7px}
     #radarwrap{padding:8px}
     #radar{width:170px;height:170px}
@@ -326,7 +334,7 @@
     <div id="crosshair"><div class="ring"></div><div class="dot"></div>
       <div class="tick t1"></div><div class="tick t2"></div><div class="tick t3"></div><div class="tick t4"></div></div>
     <div id="markers"></div>
-    <div id="topbar"><div id="sysname">SYSTEM</div><div id="worlds">0 WORLDS CHARTED</div><div id="species">0 SPECIES LOGGED</div></div>
+    <div id="topbar"><div id="sysname">SYSTEM</div><div id="worlds">0 WORLDS CHARTED</div><div id="species">0 SPECIES LOGGED</div><div id="estelars">★ 0</div></div>
     <div id="toasts"></div>
     <div id="pcard" class="panel">
       <div class="pc-name">—</div><div class="pc-type">—</div>
@@ -347,6 +355,7 @@
     <div id="outfit" class="panel"></div>
     <div id="hangar" class="panel"></div>
     <div id="trade" class="panel"></div>
+    <div id="kiosk" class="panel"></div>
     <div id="radarwrap" class="panel"><canvas id="radar"></canvas><div id="radarcap"></div></div>
     <div id="confetti"></div>
     <div id="scanring"></div>

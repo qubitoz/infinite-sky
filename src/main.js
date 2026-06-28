@@ -14,6 +14,7 @@ import { buildSpeciesCatalog, CreatureManager } from './creatures.js';
 import { buildAvatar } from './avatar.js';
 import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager } from './gear.js';
 import { SiteManager } from './sites.js';
+import { SpaceportManager } from './spaceport.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
 import { Radar } from './radar.js';
 import { WeatherSystem, weatherKind } from './weather.js';
@@ -110,7 +111,15 @@ const pickups = new PickupManager(scene);
 const inventory = new Inventory();
 const sites = new SiteManager(scene);
 const mining = new MiningManager(scene);
+const spaceport = new SpaceportManager(scene);
+spaceport.init(planets, seed);
 const _beamFrom = new THREE.Vector3();
+let currentKiosk = null;
+function awardStelars(n, reason) {
+  inventory.earn(n);
+  hud.setStelars(inventory.estelars);
+  hud.toast(reason, `+${n} ★`);
+}
 let ownedPaints = [];
 let paintMap = {};
 const paintsState = () => ({ owned: ownedPaints, current: paintMap[ship.variantKey] || null });
@@ -204,6 +213,7 @@ function loadSaves() {
     for (const id of JSON.parse(localStorage.getItem(faunaKey) || '[]')) discoveredFauna.add(id);
   } catch { /* fresh */ }
   inventory.load(profile);
+  hud.setStelars(inventory.estelars);
   avatar.setOutfit(inventory.equipped, buildPiece);
   sites.setContext(profile, seed);
   try {
@@ -454,7 +464,18 @@ const loop = () => {
     // digit routing: whichever panel is open
     for (let i = 1; i <= 9; i++) {
       if (!input.pressed(`Digit${i}`)) continue;
-      if (hud.outfitOn) {
+      if (hud.kioskOn) {
+        if (currentKiosk && currentKiosk.id === 'exchange') {
+          const mat = inventory.sellableList()[i - 1];
+          if (mat) {
+            const gain = inventory.sellAll(mat);
+            hud.setStelars(inventory.estelars);
+            hud.toast(`${t('toast.sold')} ${pick(MATERIALS[mat].name)}`, `+${gain} ★`);
+            hud.renderKiosk(currentKiosk, inventory);
+            audio.blip(990);
+          }
+        }
+      } else if (hud.outfitOn) {
         const piece = inventory.unlockedList()[i - 1];
         if (piece) {
           inventory.toggleEquip(piece);
@@ -535,14 +556,17 @@ const loop = () => {
         audio.jingle();
         saveFauna();
         hud.setSpecies(discoveredFauna.size, allSpecies.length);
+        awardStelars(fresh * 15, t('toast.bonusSpecies'));
         const sp = nearest.species || [];
         if (sp.length && sp.every((s) => discoveredFauna.has(s.id))) {
           hud.toast(t('toast.planetDone'), nearest.def.name);
+          awardStelars(50, t('toast.bonusFauna'));
           hud.celebrate();
           audio.celebrate();
         }
         if (discoveredFauna.size === allSpecies.length) {
           hud.toast(t('toast.systemDone'), system.name);
+          awardStelars(100, t('toast.bonusSystem'));
           hud.celebrate();
         }
       }
@@ -576,6 +600,7 @@ const loop = () => {
   sites.update(dt, started ? player.bodyPos() : camera.position, nearest, started);
   mining.update(dt, started ? player.bodyPos() : camera.position, nearest,
     started && player.mode === 'walk');
+  spaceport.update(dt, started ? player.bodyPos() : camera.position, started);
 
   // visibility logic: on the surface only the local radar exists
   const onSurface = started && player.mode !== 'fly';
@@ -585,6 +610,16 @@ const loop = () => {
   // on foot: pieces and materials collect by proximity; gems need the laser
   if (started && player.mode === 'walk' && input.locked) {
     const body = player.bodyPos();
+
+    // spaceport kiosks: the screen lights up and opens when you walk up,
+    // and closes by itself when you walk away (no button to learn)
+    const kiosk = spaceport.isPortPlanet(nearest) ? spaceport.activeKiosk(body) : null;
+    if (kiosk !== currentKiosk) {
+      currentKiosk = kiosk;
+      if (kiosk) { hud.openKiosk(kiosk, inventory); audio.blip(620); }
+      else if (hud.kioskOn) hud.closeKiosk();
+    }
+
     const part = sites.nearestPart(nearest, body, 4.5);
     if (part) collectPartItem(nearest, part);
     const it = pickups.nearestWithin(body, 3.5);
@@ -621,6 +656,7 @@ const loop = () => {
   } else {
     mining.stopBeam();
     audio.setLaser(false, dt);
+    if (currentKiosk) { currentKiosk = null; if (hud.kioskOn) hud.closeKiosk(); }
   }
 
   // ship beacon while on foot
@@ -685,6 +721,7 @@ const loop = () => {
       hud.toast(t('toast.discovered'), `${nearest.def.name} — ${pick(nearest.def.biome.label)}`);
       audio.jingle();
       saveDiscoveries();
+      awardStelars(25, t('toast.bonusWorld'));
     }
     const inAtmo = atmoF > 0.05 ? nearest : null;
     if (inAtmo !== lastAtmoPlanet) {
@@ -733,6 +770,22 @@ const loop = () => {
         });
       }
       markers.push({ name: system.name, sub: t('mk.star'), pos: SUN_POS, kind: 'star', discovered: true });
+    }
+    // spaceport guidance (only while near the host planet; built === near)
+    if (spaceport.isPortPlanet(nearest) && spaceport.built) {
+      markers.push({
+        name: t('mk.port'), sub: player.mode === 'fly' ? t('mk.portLand') : '',
+        pos: spaceport.anchor.pos, kind: 'port', discovered: true, clamp: true,
+      });
+      if (player.mode === 'walk') {
+        for (const b of spaceport.blips()) {
+          if (b.kind !== 'kiosk' || b.pos.distanceTo(player.bodyPos()) > 55) continue;
+          markers.push({
+            name: t('kiosk.' + b.id), sub: t('mk.kiosk'), pos: b.pos,
+            kind: 'pickup', discovered: true,
+          });
+        }
+      }
     }
     if (player.mode === 'walk') {
       markers.push({
@@ -787,6 +840,7 @@ const loop = () => {
             x: p.center.x, z: p.center.z, col: p.def.sky || p.def.biome.sky,
             state: complete ? 3 : landedSet.has(p.def.id) ? 2 : p.discovered ? 1 : 0,
             name: p.def.name.split(' ')[0], hazard: !!p.def.biome.hazard,
+            port: spaceport.isPortPlanet(p),
           };
         });
         _vd.set(0, 0, -1).applyQuaternion(player.quat);
@@ -822,6 +876,7 @@ const loop = () => {
         for (const it of pickups.items) proj(it.pos, 'pickup');
         for (const blip of sites.blips(nearest)) proj(blip.pos, blip.kind);
         for (const blip of mining.blips()) proj(blip.pos, 'ore');
+        if (spaceport.isPortPlanet(nearest)) for (const b of spaceport.blips()) proj(b.pos, b.kind);
         if (player.mode === 'walk') proj(player.pos, 'ship');
         const sp = nearest.species || [];
         data.planet = {
@@ -856,7 +911,7 @@ renderer.setAnimationLoop(loop);
 window.__game = {
   start: () => titleEl.click(), player, planets, camera, system, input, hud,
   creatureMgr, allSpecies, discoveredFauna, inventory, pickups, avatar,
-  radar, sites, galaxy, ship, hyperjump, weather, mining,
+  radar, sites, galaxy, ship, hyperjump, weather, mining, spaceport,
   get ownedShips() { return ownedShips; },
   step(n = 1, dt = 1 / 60) {
     FIXED_DT = dt;

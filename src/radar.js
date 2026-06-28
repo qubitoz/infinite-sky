@@ -98,6 +98,12 @@ export class Radar {
       else if (e.kind === 'vendor') this.dot(px, py, 4, '#ff7ab8');
       else if (e.kind === 'ore') { this.dot(px, py, 3, '#ffd34d'); this.dot(px, py, 6, '#ffd34d', true); }
       else if (e.kind === 'ruin') { this.dot(px, py, 4, '#9fe8d8', true); this.dot(px, py, 1.5, '#9fe8d8'); }
+      else if (e.kind === 'kiosk') this.dot(px, py, 2.5, '#7fc4ff');
+      else if (e.kind === 'port') {
+        this.dot(px, py, 5, '#5ef2d6', true);
+        c.strokeStyle = '#5ef2d6'; c.beginPath();
+        c.moveTo(px - 4, py); c.lineTo(px + 4, py); c.moveTo(px, py - 4); c.lineTo(px, py + 4); c.stroke();
+      }
       else if (e.kind === 'ship') this.tri(px, py, Math.atan2(x, -y), '#7fd4ff', 6);
     }
     this.tri(m, m, 0, '#ffffff', 5); // you, facing up
@@ -130,8 +136,15 @@ export class Radar {
         if (p.state >= 2) this.dot(px, py, 7, p.state === 3 ? '#ffd34d' : '#5ef2d6', true);
       }
       if (p.hazard) this.dot(px, py, p.state >= 2 ? 9.5 : 7, '#ff8a4a', true);
+      if (p.port) {
+        c.strokeStyle = '#5ef2d6';
+        c.beginPath(); c.arc(px, py, 8.5, 0, Math.PI * 2); c.stroke();
+        c.beginPath();
+        c.moveTo(px - 8.5, py); c.lineTo(px + 8.5, py);
+        c.moveTo(px, py - 8.5); c.lineTo(px, py + 8.5); c.stroke();
+      }
       c.fillStyle = 'rgba(215,236,255,.85)';
-      c.fillText(p.name, px + 8, py + 3);
+      c.fillText(p.name, px + 10, py + 3);
     }
     this.tri(m + d.ship.x * k, m + d.ship.z * k, d.ship.heading, '#ffffff', 5);
     this.cap.textContent = `${d.sysName}`;

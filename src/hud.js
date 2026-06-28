@@ -3,7 +3,7 @@
 // All visible text routes through i18n (t / pick) and re-renders on language
 // switch via refreshLang().
 import * as THREE from 'three';
-import { MATERIALS, PIECES } from './gear.js';
+import { MATERIALS, PIECES, SELL_VALUE, reserveFor } from './gear.js';
 import { SHIPS, PAINTS } from './ship.js';
 import { t, pick } from './i18n.js';
 
@@ -26,6 +26,7 @@ export class HUD {
       hud: $('hud'), speed: $('speed'), alt: $('altline'),
       thr: $('thr'), thrv: $('thrv'), bst: $('bst'), pls: $('pls'),
       sysname: $('sysname'), worlds: $('worlds'), species: $('species'), toasts: $('toasts'),
+      estelars: $('estelars'), kiosk: $('kiosk'),
       pcard: $('pcard'), hint: $('hint'), help: $('help'), catalog: $('catalog'),
       outfit: $('outfit'), confetti: $('confetti'), hangar: $('hangar'), trade: $('trade'),
       lblthr: $('lblthr'), lblbst: $('lblbst'), lblpls: $('lblpls'), loadtxt: $('loading'),
@@ -36,6 +37,9 @@ export class HUD {
     this.outfitOn = false;
     this.hangarOn = false;
     this.tradeOn = false;
+    this.kioskOn = false;
+    this._kioskArgs = null;
+    this._stelars = 0;
     this.markerPool = [];
     this.cardKey = null;
     this.helpOn = false;
@@ -64,6 +68,12 @@ export class HUD {
         else this.onPanelClose?.(key);
       });
     }
+    // kiosk panel: tapping a row sells/buys; it auto-closes by walking away
+    this.els.kiosk.addEventListener('click', (e) => {
+      const row = e.target.closest('.piece');
+      const n = row ? parseInt(row.querySelector('b')?.textContent, 10) : NaN;
+      if (n >= 1 && n <= 9) this.onDigit?.(n);
+    });
   }
 
   refreshLang() {
@@ -77,12 +87,14 @@ export class HUD {
     if (this._sys[0]) this.setSystem(this._sys[0], this._sys[1]);
     this.setWorlds(this._worlds[0], this._worlds[1]);
     this.setSpecies(this._species[0], this._species[1]);
+    this.setStelars(this._stelars);
     this.cardKey = null;
     if (this.mode) this.setMode(this.mode);
     if (this.catalogOn && this._catalogArgs) { this.catalogOn = false; this.toggleCatalog(...this._catalogArgs); }
     if (this.outfitOn && this._outfitInv) this.renderOutfit(this._outfitInv);
     if (this.hangarOn && this._hangarArgs) this.renderHangar(...this._hangarArgs);
     if (this.tradeOn && this._tradeArgs) this.renderTrade(...this._tradeArgs);
+    if (this.kioskOn && this._kioskArgs) this.renderKiosk(...this._kioskArgs);
   }
 
   closePanels() {
@@ -90,6 +102,55 @@ export class HUD {
     this.outfitOn = false; this.els.outfit.classList.remove('on');
     this.hangarOn = false; this.els.hangar.classList.remove('on');
     this.tradeOn = false; this.els.trade.classList.remove('on');
+    this.kioskOn = false; this.els.kiosk.classList.remove('on');
+  }
+
+  setStelars(n) {
+    this._stelars = n;
+    this.els.estelars.textContent = `★ ${n} ${t('top.stelars')}`;
+  }
+
+  // open a kiosk panel for the given category (auto-closed by walking away)
+  openKiosk(kiosk, inv) {
+    this.closePanels();
+    this.kioskOn = true;
+    this._kioskArgs = [kiosk, inv];
+    this.els.kiosk.classList.add('on');
+    this.renderKiosk(kiosk, inv);
+  }
+
+  closeKiosk() {
+    this.kioskOn = false;
+    this._kioskArgs = null;
+    this.els.kiosk.classList.remove('on');
+  }
+
+  renderKiosk(kiosk, inv) {
+    this._kioskArgs = [kiosk, inv];
+    let html = `<h3><span class="sw" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${kiosk.color};margin-right:8px;vertical-align:-1px"></span>${t('kiosk.' + kiosk.id)}</h3>`;
+    if (kiosk.id === 'exchange') {
+      html += `<div class="k-bal">★ ${inv.estelars}</div>`;
+      const list = inv.sellableList();
+      if (!list.length) {
+        html += `<div class="k-tease">${t('kiosk.empty')}</div>`;
+        html += `<div class="o-hint" style="text-align:center">${t('kiosk.keep')}</div>`;
+      } else {
+        html += '<div class="pieces">';
+        list.slice(0, 9).forEach((m, i) => {
+          const s = inv.surplus(m), v = SELL_VALUE[m], r = reserveFor(m);
+          const keep = r ? ` <i style="opacity:.55">(${r} ${t('kiosk.kept')})</i>` : '';
+          html += `<div class="piece"><b>${i + 1}</b> <i class="sw" style="background:${MATERIALS[m].color}"></i>${pick(MATERIALS[m].name)} × ${s}${keep} <span>${v} ★ ${t('kiosk.each')} → ${s * v} ★</span></div>`;
+        });
+        html += '</div>';
+        html += `<div class="o-hint">${t('kiosk.exchangeHint')}</div>`;
+        html += `<div class="o-hint" style="margin-top:4px">${t('kiosk.keep')}</div>`;
+      }
+    } else {
+      html += `<div class="k-soon">${t('kiosk.soon')}</div>`;
+      html += `<div class="k-tease">${t('kiosk.' + kiosk.id + 'Tease')}</div>`;
+      html += `<div class="o-hint" style="text-align:center">${t('kiosk.soonHint')}</div>`;
+    }
+    this.els.kiosk.innerHTML = html;
   }
 
   show() { this.els.hud.classList.add('on'); }
