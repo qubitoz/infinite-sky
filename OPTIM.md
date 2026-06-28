@@ -141,17 +141,30 @@ con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
 
 ---
 
-## Lote 6 — Draw calls de fauna (caro, a futuro)
+## Lote 6 — Draw calls de fauna (caro) ✅ HECHO (2026-06-28)
 
-Cada criatura es un `THREE.Group` clonado de ~13 meshes separados (no instanciado). Con
-`pop=8` en móvil → 100+ draw calls solo de fauna, y las GPU tiled son muy sensibles.
+> Aplicado (kid-design-reviewer + perf-verifier). Solo renderer/render — terreno intacto,
+> 8-muestras byte-idénticas HQ+LQ. Los individuos ya eran `Math.random` (no seed-compartido),
+> así que instanciarlos no tiene riesgo de determinismo. Antes: cada criatura = `THREE.Group`
+> clonado de ~13 mallas con animación por-parte en CPU → ~13×N draw calls.
 
-- **6.1 — Barato ya:** pool de Groups por especie (reusar despawneadas en vez de
-  `clone()` fresco); bajar `pop`/radio de despawn (280) en `QUAL` móvil.
-- **6.2 — A medio plazo:** merge de cada especie en una `BufferGeometry` (animación a
-  shader, o solo las más cercanas) o impostor para las lejanas.
-- **6.3 — Props:** reducir radio/conteo de tiles en móvil, cull del césped a radio más
-  corto, repartir `buildTile` entre frames, merge de mismo-template entre tiles vecinos.
+- **6.1 ✅ — Sin clones + tuning móvil** (`creatures.js`): el instancing (6.2) ELIMINA los
+  Groups por criatura, así que ya no hay `clone()` ni GC de spawn (mejor que un pool). En
+  móvil/LQ: `popCap` ya era 8, y ahora `despawnR = popCap<=8 ? 220 : 280` (menos criaturas
+  en pantalla).
+- **6.2 ✅ — Instancing por especie** (`creatures.js`, `props.js`): cada especie se fusiona
+  en UNA geometría con vertex-colors (`getImpostor` reusa `merged`/`paint` de props) → UN
+  `InstancedMesh` por especie = **1 draw call** (antes ~13×N). La matriz por-instancia
+  conserva movimiento de cuerpo entero (desplazamiento, salto, flotación, huida/acercar/
+  círculo, orientación, respiro ±2%, squash de blob, flash de escaneo); se pierde la
+  animación de PARTES (patas/alas/orejas). Verificado: 9 vivos/3 especies = 3 draws (antes
+  ~117). Escaneo/descubrimiento/catálogo intactos (operan sobre objetos de criatura).
+- **6.3 ✅ PARCIAL — Props** (`planet.js`): `radius = lowQ ? 135 : 190` (menos tiles en
+  móvil); grass a 0.5 densidad en LQ (el `rand()` del count se consume igual → mismo PRNG
+  por-tile, solo menos instancias); `buildTile` repartido con cap por llamada (`lowQ?3:6`,
+  más cercanos primero) → sin hitch de aterrizaje. **⏸️ Diferido**: merge de mismo-template
+  entre tiles vecinos (colapsaría ~213 draws de props HQ a ~3–4, pero requiere gestionar un
+  buffer de instancias combinado a través de tiles — su propia tarea, ver Post-Lote 6).
 
 ---
 
@@ -168,6 +181,13 @@ Cada criatura es un `THREE.Group` clonado de ~13 meshes separados (no instanciad
   `buildShells` (no `farMesh`) con cuidado del substream de PRNG (reservar/precalcular el
   consumo de `this.rand` para que el orden determinista se preserve al diferirse).
   **Acordado 2026-06-28: ejecutar DESPUÉS del Lote 6.**
+
+- **Merge de props mismo-template entre tiles vecinos** (resto del 6.3). Hoy cada tile ×
+  cada template = un `InstancedMesh` → ~213 draws de props en HQ (más que la fauna ya
+  instanciada). Combinar las instancias del mismo template de todos los tiles en rango en
+  UN solo `InstancedMesh` por template bajaría props a ~3–4 draws. Requiere gestionar un
+  buffer combinado que se reconstruye al entrar/salir tiles (o `BatchedMesh`, ya en el
+  bundle). Es el mayor draw-call restante; va como tarea propia tras el billboard-LOD.
 
 ---
 

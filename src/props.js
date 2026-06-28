@@ -14,7 +14,7 @@ function paint(geo, hex) {
   return geo;
 }
 
-function merged(parts) {
+export function merged(parts) {
   // indexed (Cylinder/Sphere…) and non-indexed (Icosahedron/Octahedron…)
   // geometries can't merge together — normalize to non-indexed when mixed
   const mixed = parts.some((p) => !p.index);

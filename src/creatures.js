@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { mulberry32, clamp, lerp } from './noise.js';
 import { creatureName } from './names.js';
+import { merged } from './props.js';
 
 const TEMPERAMENTS = ['shy', 'curious', 'playful', 'calm'];
 const RARITY_WEIGHT = { common: 1, uncommon: 0.5, rare: 0.2 };
@@ -187,20 +188,46 @@ const BUILDERS = {
   },
 };
 
-const protoCache = new Map();
-function getProto(spec) {
-  let proto = protoCache.get(spec.id);
-  if (!proto) {
-    proto = new THREE.Group();
-    const M = {
-      body: new THREE.MeshStandardMaterial({ color: spec.body, roughness: 0.85, flatShading: true }),
-      belly: new THREE.MeshStandardMaterial({ color: spec.belly, roughness: 0.9, flatShading: true }),
-      accent: new THREE.MeshStandardMaterial({ color: spec.accent, roughness: 0.7, flatShading: true }),
-    };
-    BUILDERS[spec.archetype](proto, M, spec.eyeScale);
-    protoCache.set(spec.id, proto);
-  }
-  return proto;
+// Each species is collapsed to ONE vertex-colored geometry (the same merge pattern
+// props use): build the part group once, bake every part's transform + material color
+// into the mesh, then merge. All live individuals of a species then draw as a single
+// InstancedMesh (one draw call) instead of a ~13-mesh Group each. The trade is per-part
+// limb animation for whole-body motion (move / hop / hover / turn / scan-flash) carried
+// by the per-instance matrix — the dominant motion at the distances fauna is viewed.
+function paintColor(geo, color) {
+  const n = geo.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+
+const impostorCache = new Map();
+function getImpostor(spec) {
+  let imp = impostorCache.get(spec.id);
+  if (imp) return imp;
+  const g = new THREE.Group();
+  const M = {
+    body: new THREE.MeshStandardMaterial({ color: spec.body }),
+    belly: new THREE.MeshStandardMaterial({ color: spec.belly }),
+    accent: new THREE.MeshStandardMaterial({ color: spec.accent }),
+  };
+  BUILDERS[spec.archetype](g, M, spec.eyeScale);
+  g.updateWorldMatrix(true, true);
+  const parts = [];
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    const geo = o.geometry.clone();
+    geo.applyMatrix4(o.matrixWorld);   // bake the part's pose (relative to the root)
+    paintColor(geo, o.material.color); // bake the part's color as vertex colors
+    parts.push(geo);
+  });
+  const geo = merged(parts);           // one geometry (normalizes indexed/non-indexed mix)
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.84, metalness: 0 });
+  M.body.dispose(); M.belly.dispose(); M.accent.dispose();
+  imp = { geo, mat };
+  impostorCache.set(spec.id, imp);
+  return imp;
 }
 
 // ------------------------------------------------------------- live fauna
@@ -216,16 +243,34 @@ export class CreatureManager {
   constructor(scene, popCap = 12) {
     this.scene = scene;
     this.popCap = popCap;
+    // tighter despawn radius on the low-pop (mobile/LQ) profile — fewer instances
+    // on screen where draw calls hurt most
+    this.despawnR = popCap <= 8 ? 220 : 280;
     this.alive = [];
+    this.insts = new Map(); // spec.id -> InstancedMesh (one draw call per species)
     this.spawnTimer = 0;
   }
 
+  // lazily create the per-species instanced mesh the first time it's needed
+  getInst(spec) {
+    let inst = this.insts.get(spec.id);
+    if (!inst) {
+      const { geo, mat } = getImpostor(spec);
+      inst = new THREE.InstancedMesh(geo, mat, this.popCap);
+      inst.count = 0;
+      inst.frustumCulled = false; // matrices are world-space; per-instance cull is moot
+      inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(inst);
+      this.insts.set(spec.id, inst);
+    }
+    return inst;
+  }
+
   update(dt, anchor, planet, active) {
-    // despawn far / inactive
+    // despawn far / inactive — no scene churn, the instance just stops being written
     for (let i = this.alive.length - 1; i >= 0; i--) {
       const c = this.alive[i];
-      if (!active || c.planet !== planet || c.pos.distanceTo(anchor) > 280) {
-        this.scene.remove(c.group);
+      if (!active || c.planet !== planet || c.pos.distanceTo(anchor) > this.despawnR) {
         this.alive.splice(i, 1);
       }
     }
@@ -238,6 +283,20 @@ export class CreatureManager {
       }
     }
     for (const c of this.alive) this.behave(c, dt, anchor, planet);
+    this.flush();
+  }
+
+  // pack live individuals into their species' instance buffer (one draw call each)
+  flush() {
+    for (const inst of this.insts.values()) inst.__n = 0;
+    for (const c of this.alive) {
+      const inst = c.inst;
+      inst.setMatrixAt(inst.__n++, c.m4);
+    }
+    for (const inst of this.insts.values()) {
+      inst.count = inst.__n;
+      inst.instanceMatrix.needsUpdate = true;
+    }
   }
 
   trySpawn(planet, anchor) {
@@ -258,31 +317,21 @@ export class CreatureManager {
     const smp = planet.sampleAt(_v2);
     if (smp.terrR < smp.floorR - 0.01) return; // no spawning on water/lava
 
-    const group = getProto(spec).clone();
-    group.scale.setScalar(spec.size);
+    const inst = this.getInst(spec);
     const pos = planet.center.clone().addScaledVector(smp.up, smp.floorR - 0.05);
-    group.position.copy(pos);
-    this.scene.add(group);
-
-    const parts = { legs: [], wings: [], ears: [], head: null, tail: null, body: null };
-    group.traverse((o) => {
-      if (o.name.startsWith('leg')) parts.legs.push(o);
-      else if (o.name.startsWith('wing')) parts.wings.push(o);
-      else if (o.name.startsWith('ear')) parts.ears.push(o);
-      else if (o.name === 'head') parts.head = o;
-      else if (o.name === 'tail') parts.tail = o;
-      else if (o.name === 'body') parts.body = o;
-    });
     const c = {
-      spec, planet, group, pos, parts,
+      spec, planet, inst, pos,
       fwd: _v1.clone(),
+      quat: new THREE.Quaternion(),
+      m4: new THREE.Matrix4(),
       state: 'idle', t: 1 + Math.random() * 2,
-      phase: Math.random() * 10, flash: 0,
-      bodyScaleY: parts.body ? parts.body.scale.y : 1,
+      phase: Math.random() * 10, breath: Math.random() * 6, flash: 0,
       groundT: 0, gUp: null, gFloorR: 0, // amortized ground sampling (full path)
     };
     // face a random tangent direction immediately
     this.orient(c, smp.up, 1);
+    _v3.setScalar(spec.size);
+    c.m4.compose(c.pos, c.quat, _v3);
     this.alive.push(c);
   }
 
@@ -295,7 +344,7 @@ export class CreatureManager {
     const back = _v2.crossVectors(right, up).normalize();
     _m.makeBasis(right, up, back);
     _q.setFromRotationMatrix(_m);
-    c.group.quaternion.slerp(_q, k);
+    c.quat.slerp(_q, k);
   }
 
   behave(c, dt, anchor, planet) {
@@ -356,30 +405,21 @@ export class CreatureManager {
     if (a === 'flyer') lift = (2.4 + Math.sin(c.phase * 1.6) * 0.5) * c.spec.size;
     if (a === 'blob' && moving) lift = Math.abs(Math.sin(c.phase * 4)) * 0.2 * c.spec.size;
     c.pos.copy(planet.center).addScaledVector(up, c.gFloorR - 0.05 + lift);
-    c.group.position.copy(c.pos);
     this.orient(c, up, moving ? 1 - Math.exp(-dt * 6) : 1 - Math.exp(-dt * 2));
 
-    // part animation
-    const swing = moving ? Math.sin(c.phase * 7) * 0.55 : 0;
-    c.parts.legs.forEach((l, i) => { l.rotation.x = swing * (i % 2 ? 1 : -1); });
-    c.parts.wings.forEach((w, i) => {
-      w.rotation.z = (i ? -1 : 1) * (0.25 + Math.sin(c.phase * 10) * 0.55);
-    });
-    c.parts.ears.forEach((e, i) => {
-      e.rotation.z = (i ? -0.3 : 0.3) + Math.sin(c.phase * 2 + i) * 0.12;
-    });
-    if (c.parts.tail) c.parts.tail.rotation.y = Math.sin(c.phase * 3) * 0.3;
-    if (c.parts.head) c.parts.head.rotation.x = Math.sin(c.phase * 1.7) * 0.08;
-    if (a === 'blob' && c.parts.body) {
-      const s = 1 + Math.sin(c.phase * 4) * 0.1;
-      c.parts.body.scale.y = c.bodyScaleY * s;
+    // compose the per-instance matrix: pose + a gentle breathing pulse (keeps idle
+    // creatures alive without per-part meshes) + the scan-flash pulse. Blobs squash.
+    c.breath += dt * 2.4;
+    if (c.flash > 0) c.flash -= dt;
+    const flashS = c.flash > 0 ? 1 + c.flash * 0.12 * Math.abs(Math.sin(c.flash * 18)) : 1;
+    const base = c.spec.size * flashS;
+    if (a === 'blob') {
+      const sq = 1 + Math.sin(c.breath) * 0.1;
+      _v3.set(base / Math.sqrt(sq), base * sq, base / Math.sqrt(sq));
+    } else {
+      _v3.setScalar(base * (1 + Math.sin(c.breath) * 0.02));
     }
-
-    // scan flash
-    if (c.flash > 0) {
-      c.flash -= dt;
-      c.group.scale.setScalar(c.spec.size * (1 + Math.max(c.flash, 0) * 0.12 * Math.abs(Math.sin(c.flash * 18))));
-    }
+    c.m4.compose(c.pos, c.quat, _v3);
   }
 
   // creatures in range and roughly in front of the camera

@@ -468,6 +468,7 @@ export class Planet {
   // ----- props ---------------------------------------------------------------
   updatePropTiles(camLocal, camAlt) {
     const keep = new Set();
+    const toBuild = [];
     if (camAlt < 700 && this.propTemplates.length) {
       const dir = _v2.copy(camLocal).normalize();
       const face = faceOfDir(dir);
@@ -478,7 +479,8 @@ export class Planet {
         const div = 1 << this.propLevel, size = 2 / div;
         const tileWorld = this.faceArc / div;
         const cx = Math.floor((u + 1) / size), cy = Math.floor((v + 1) / size);
-        const radius = 190;
+        // tighter prop radius on mobile/LQ (fewer instanced-tile draw calls + less build work)
+        const radius = this.lowQ ? 135 : 190;
         const range = Math.ceil(radius / tileWorld) + 1;
         for (let dy = -range; dy <= range; dy++) {
           for (let dx = -range; dx <= range; dx++) {
@@ -489,7 +491,7 @@ export class Planet {
             if (d > radius + Math.max(camAlt, 0) + tileWorld) continue;
             const tk = `${face}|${ix}|${iy}`;
             keep.add(tk);
-            if (!this.tiles.has(tk)) this.buildTile(face, ix, iy, tk);
+            if (!this.tiles.has(tk)) toBuild.push({ face, ix, iy, tk, d });
           }
         }
       }
@@ -498,6 +500,17 @@ export class Planet {
       if (!keep.has(tk)) {
         tile.forEach((m) => { this.group.remove(m); m.dispose(); });
         this.tiles.delete(tk);
+      }
+    }
+    // build nearest-first, capped per call so entering many tiles at once (landing,
+    // fast flight) spreads the build cost over a few frames instead of one hitch.
+    // Unbuilt kept tiles stay in `keep`, so they're built on the next call.
+    if (toBuild.length) {
+      const cap = this.lowQ ? 3 : 6;
+      if (toBuild.length > cap) toBuild.sort((a, b) => a.d - b.d);
+      for (let i = 0; i < toBuild.length && i < cap; i++) {
+        const t = toBuild[i];
+        this.buildTile(t.face, t.ix, t.iy, t.tk);
       }
     }
   }
@@ -512,7 +525,11 @@ export class Planet {
     const colA = new THREE.Color(), colB = new THREE.Color();
 
     for (const tpl of this.propTemplates) {
-      const count = Math.round(tpl.density * 24 * (0.7 + rand() * 0.6));
+      // thin out only grass on mobile (the fill-heavy alpha-tested billboards);
+      // trees/rocks/landmarks keep their count. rand() is still consumed first, so
+      // the per-tile sequence is unchanged — only the final instance count drops.
+      const densK = this.lowQ && tpl.name === 'grass' ? 0.5 : 1;
+      const count = Math.round(tpl.density * 24 * (0.7 + rand() * 0.6) * densK);
       if (!count) continue;
       const inst = new THREE.InstancedMesh(tpl.geo, tpl.mat, count);
       colA.set(tpl.colorA); colB.set(tpl.colorB);
