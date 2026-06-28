@@ -269,6 +269,9 @@ export class Planet {
       // fade the shell out when the camera is close to (or under) it
       const dShell = Math.abs(distC - this.R * 1.05);
       this.clouds.material.opacity = clamp(dShell / (this.R * 0.06), 0.1, 1);
+      // outside the shell only the front faces are visible — halve the overdraw
+      const side = distC > this.R * 1.06 ? THREE.FrontSide : THREE.DoubleSide;
+      if (this.clouds.material.side !== side) this.clouds.material.side = side;
     }
     if (isNearest && distC < this.R * 3.5) {
       this.lodTimer -= dt;
@@ -554,6 +557,7 @@ export class Planet {
     this.built.clear();
     this.desired.clear();
     this.queued.clear();
+    this.nodeH.clear(); // recomputed cheaply; otherwise grows unbounded all session
     for (const [, tile] of this.tiles) tile.forEach((m) => { this.group.remove(m); m.dispose(); });
     this.tiles.clear();
   }

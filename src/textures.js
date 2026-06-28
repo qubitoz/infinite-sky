@@ -119,6 +119,23 @@ export function makeGlowTexture() {
   });
 }
 
+// The radial glow is identical everywhere; share ONE texture across all the
+// sprite-using systems (avatar/ship/sites/spaceport/mining/gear/gadgets/effects)
+// instead of generating 8 copies in VRAM. Never .dispose() this one.
+let _glow = null;
+export function getGlow() { return _glow || (_glow = makeGlowTexture()); }
+
+// Dispose geometry + materials of a removed subtree (does NOT touch Sprite
+// geometry — that's a three.js singleton — nor shared textures like the glow).
+export function disposeTree(obj) {
+  const seen = new Set();
+  obj.traverse((o) => {
+    if (o.isMesh && o.geometry) o.geometry.dispose();
+    const m = o.material;
+    if (m) for (const mm of (Array.isArray(m) ? m : [m])) if (!seen.has(mm)) { seen.add(mm); mm.dispose(); }
+  });
+}
+
 export function makeNebulaTexture(rand) {
   const S = 256;
   const n = tileableNoise(rand, S, S, 4, 4, 5, 0.62);

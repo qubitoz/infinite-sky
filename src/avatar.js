@@ -1,7 +1,7 @@
 // Chibi explorer avatar, visible in third-person on foot. Outfit pieces
 // attach to named anchors (head / face / back). Built feet-at-origin, -Z fwd.
 import * as THREE from 'three';
-import { makeGlowTexture } from './textures.js';
+import { getGlow } from './textures.js';
 
 function mk(parent, geo, mat, sx, sy, sz, x, y, z, name = '') {
   const m = new THREE.Mesh(geo, mat);
@@ -61,7 +61,7 @@ export function buildAvatar(accentHex = '#ff8a4a') {
 
   // jetpack flame
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeGlowTexture(), color: '#7fd4ff', transparent: true, opacity: 0,
+    map: getGlow(), color: '#7fd4ff', transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   flame.position.set(0, 0.62, 0.46);

@@ -3,19 +3,20 @@
 // to extract units one by one. A beam + sparks sell the effect; everything is
 // kid-gentle — veins never fight back, they just sparkle and shrink.
 import * as THREE from 'three';
-import { makeGlowTexture } from './textures.js';
+import { getGlow, disposeTree } from './textures.js';
 import { clamp } from './noise.js';
 
 const _u = new THREE.Vector3();
 const _t = new THREE.Vector3();
 const _rel = new THREE.Vector3();
+const _probe = new THREE.Vector3();
 
 export class MiningManager {
   constructor(scene) {
     this.scene = scene;
     this.nodes = [];
     this.timer = 0;
-    this.glowTex = makeGlowTexture();
+    this.glowTex = getGlow();
     this.progress = 0;
     this.target = null;
 
@@ -35,6 +36,7 @@ export class MiningManager {
     for (let i = this.nodes.length - 1; i >= 0; i--) {
       const n = this.nodes[i];
       if (!active || n.planet !== planet || n.pos.distanceTo(anchor) > 200) {
+        disposeTree(n.group);
         this.scene.remove(n.group);
         this.nodes.splice(i, 1);
       }
@@ -61,7 +63,7 @@ export class MiningManager {
       if (_t.lengthSq() < 1e-6) continue;
       _t.normalize();
       const d = 25 + Math.random() * 90;
-      const probe = anchor.clone().addScaledVector(_t, d);
+      const probe = _probe.copy(anchor).addScaledVector(_t, d);
       const s = planet.sampleAt(probe);
       if (s.terrR >= s.floorR - 0.01) smp = s; // land only
     }
@@ -136,6 +138,7 @@ export class MiningManager {
           _t.set(Math.random() - 0.5, Math.random() * 1.2, Math.random() - 0.5).multiplyScalar(10);
           trail.spawn(node.pos, _t, node.color.r, node.color.g, node.color.b, 0.4 + Math.random() * 0.3);
         }
+        disposeTree(node.group);
         this.scene.remove(node.group);
         this.nodes.splice(this.nodes.indexOf(node), 1);
       }

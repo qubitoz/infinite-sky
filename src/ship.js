@@ -4,7 +4,7 @@
 // All visual parts live in an `inner` wrapper so cosmetic banking and
 // squash-and-stretch never touch the flight orientation.
 import * as THREE from 'three';
-import { makeGlowTexture } from './textures.js';
+import { getGlow, disposeTree } from './textures.js';
 import { clamp } from './noise.js';
 
 // hull paints unlocked with mined gems (owned forever once bought)
@@ -33,6 +33,7 @@ export const SHIP_SHOP = [
 ];
 
 function buildInto(group, variantKey, out) {
+  disposeTree(group); // free the previous build's geometry/materials before rebuild
   while (group.children.length) group.remove(group.children[0]);
   const v = SHIPS[variantKey] || SHIPS.star;
   const inner = new THREE.Group();
@@ -133,7 +134,7 @@ function buildInto(group, variantKey, out) {
       new THREE.MeshBasicMaterial({ color: v.glow, toneMapped: false }), sgn * 1.12, -0.05, 3.34);
     out.nozzles.push(new THREE.Vector3(sgn * 1.12, -0.05, 3.45));
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: makeGlowTexture(), color: v.glow, transparent: true, opacity: 0.8,
+      map: getGlow(), color: v.glow, transparent: true, opacity: 0.8,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     sp.position.set(sgn * 1.12, -0.05, 3.45);

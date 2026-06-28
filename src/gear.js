@@ -3,7 +3,7 @@
 // Materials are never spent — reaching the threshold unlocks the piece
 // forever (kid-friendly: no losing things).
 import * as THREE from 'three';
-import { makeGlowTexture } from './textures.js';
+import { getGlow } from './textures.js';
 
 export const MATERIALS = {
   leaf: { name: { en: 'LEAF', es: 'HOJA' }, color: '#5fae4a' },
@@ -336,13 +336,14 @@ export class Inventory {
 // ------------------------------------------------------------- world pickups
 const _u = new THREE.Vector3();
 const _t = new THREE.Vector3();
+const _probe = new THREE.Vector3();
 
 export class PickupManager {
   constructor(scene) {
     this.scene = scene;
     this.items = [];
     this.timer = 0;
-    this.glowTex = makeGlowTexture();
+    this.glowTex = getGlow();
   }
 
   update(dt, anchor, planet, active) {
@@ -381,7 +382,7 @@ export class PickupManager {
     if (_t.lengthSq() < 1e-6) return;
     _t.normalize();
     const d = 18 + Math.random() * 55;
-    const probe = anchor.clone().addScaledVector(_t, d);
+    const probe = _probe.copy(anchor).addScaledVector(_t, d);
     const smp = planet.sampleAt(probe);
     if (smp.terrR < smp.floorR - 0.01) return;
 

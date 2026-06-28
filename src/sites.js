@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
 import { vendorPieceFor } from './gear.js';
-import { makeGlowTexture } from './textures.js';
+import { getGlow, disposeTree } from './textures.js';
 
 const RESIST_SHIPS = ['frost', 'ember', 'mist', 'prism'];
 const _v1 = new THREE.Vector3();
@@ -45,7 +45,7 @@ export class SiteManager {
     this.built = null;          // {planet, group, partMeshes:[], anchors}
     this.progress = {};
     this.key = null;
-    this.glowTex = makeGlowTexture();
+    this.glowTex = getGlow();
   }
 
   setContext(profile, systemSeed) {
@@ -86,7 +86,7 @@ export class SiteManager {
   }
 
   teardown() {
-    if (this.built) { this.scene.remove(this.built.group); this.built = null; }
+    if (this.built) { disposeTree(this.built.group); this.scene.remove(this.built.group); this.built = null; }
   }
 
   // build world meshes for a planet's sites

@@ -2,7 +2,7 @@
 // harmless toys that pop targets for prizes, plus flora harvesting). All
 // bought with estelars at the spaceport, owned forever per profile.
 import * as THREE from 'three';
-import { makeGlowTexture } from './textures.js';
+import { getGlow, disposeTree } from './textures.js';
 
 export const CHARTS = [
   { id: 'system', name: { en: 'SYSTEM CHART', es: 'CARTA DEL SISTEMA' }, color: '#9fe8d8', price: 50,
@@ -42,19 +42,22 @@ function randomDir(out) {
 export class GadgetManager {
   constructor(scene) {
     this.scene = scene;
-    this.glow = makeGlowTexture();
+    this.glow = getGlow();
     this.targets = [];   // floating cosmic geodes (in space)
     this.shots = [];     // flares + bubbles
     this.spawnT = 0;
+    this._events = [];   // reused each frame (no per-frame array alloc)
   }
 
   // returns an events array: {type:'geode'|'bubble', pos}
   update(dt, camPos, hasFlare, inSpace) {
-    const events = [];
+    const events = this._events;
+    events.length = 0;
     // ---- geode targets (space, flare cannon owned)
     for (let i = this.targets.length - 1; i >= 0; i--) {
       const tg = this.targets[i];
       if (!hasFlare || !inSpace || tg.pos.distanceTo(camPos) > 900) {
+        disposeTree(tg.group);
         this.scene.remove(tg.group);
         this.targets.splice(i, 1);
       }
@@ -82,6 +85,7 @@ export class GadgetManager {
           const tg = this.targets[k];
           if (segDist2(tg.pos, _v1, sh.pos) < (tg.r + 2.5) * (tg.r + 2.5)) {
             events.push({ type: 'geode', pos: tg.pos.clone() });
+            disposeTree(tg.group);
             this.scene.remove(tg.group);
             this.targets.splice(k, 1);
             hit = true;
@@ -91,6 +95,7 @@ export class GadgetManager {
       }
       if (hit || sh.life <= 0) {
         if (sh.kind === 'bubble') events.push({ type: 'bubble', pos: sh.pos.clone() });
+        disposeTree(sh.sprite);
         this.scene.remove(sh.sprite);
         this.shots.splice(i, 1);
       }
@@ -142,8 +147,8 @@ export class GadgetManager {
   blips() { return this.targets.map((tg) => ({ pos: tg.pos, kind: 'geode' })); }
 
   teardown() {
-    for (const tg of this.targets) this.scene.remove(tg.group);
-    for (const sh of this.shots) this.scene.remove(sh.sprite);
+    for (const tg of this.targets) { disposeTree(tg.group); this.scene.remove(tg.group); }
+    for (const sh of this.shots) { disposeTree(sh.sprite); this.scene.remove(sh.sprite); }
     this.targets.length = 0;
     this.shots.length = 0;
   }

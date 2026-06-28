@@ -17,7 +17,12 @@ dispositivo real **antes y después de cada lote**. No mezclar lotes en un mismo
 
 ---
 
-## Lote 1 — Quick wins (cero/bajo riesgo, alto ROI) ✅ empezar por aquí
+## Lote 1 — Quick wins (cero/bajo riesgo, alto ROI) ✅ HECHO (2026-06-28)
+
+> Aplicado e independientemente verificado (perf-verifier APROBADO): determinismo de
+> `height3` byte a byte idéntico, sin asignaciones nuevas por frame, `disposeTree` no
+> toca el glow compartido ni la geometría singleton de Sprite. Se omitió 1.9 a propósito
+> (la métrica `distancia−R` con R por planeta haría que `distanceToSquared` elija mal).
 
 Mecánicos, sin cambiar jugabilidad ni el aspecto. Atacan fugas de memoria y trabajo
 desperdiciado por frame.

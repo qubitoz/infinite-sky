@@ -5,7 +5,7 @@
 // planet (same proximity pattern as SiteManager).
 import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
-import { makeGlowTexture } from './textures.js';
+import { getGlow, disposeTree } from './textures.js';
 
 export const KIOSKS = [
   { id: 'exchange', color: '#5ef2d6' },
@@ -58,7 +58,7 @@ function mk(parent, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
 export class SpaceportManager {
   constructor(scene) {
     this.scene = scene;
-    this.glowTex = makeGlowTexture();
+    this.glowTex = getGlow();
     this.portPlanet = null;
     this.anchor = null;
     this.kiosks = [];
@@ -154,7 +154,7 @@ export class SpaceportManager {
   }
 
   teardown() {
-    if (this.group) { this.scene.remove(this.group); this.group = null; }
+    if (this.group) { disposeTree(this.group); this.scene.remove(this.group); this.group = null; }
     this.built = false;
   }
 

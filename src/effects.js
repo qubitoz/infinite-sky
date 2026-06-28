@@ -1,12 +1,9 @@
 // Space dressing: layered starfield + galaxy band, nebula sprites, the sun,
 // an asteroid belt, pulse-drive warp streaks and the ship's engine trail.
 import * as THREE from 'three';
-import { makeGlowTexture, makeNebulaTexture } from './textures.js';
+import { getGlow, makeNebulaTexture } from './textures.js';
 import { makeSunMaterial } from './shaders.js';
 import { clamp } from './noise.js';
-
-let glowTex = null;
-function getGlow() { return glowTex || (glowTex = makeGlowTexture()); }
 
 function randomDir(rand, out) {
   const u = rand() * 2 - 1, ph = rand() * Math.PI * 2, s = Math.sqrt(1 - u * u);
@@ -169,7 +166,10 @@ export function makeAsteroidBelt(rand, belt, count) {
     m4.compose(v, q, s);
     inst.setMatrixAt(i, m4);
   }
-  inst.frustumCulled = false;
+  // proper instanced bounding sphere → cull the whole belt when it's off-screen
+  // (e.g. looking outward from the system) instead of always drawing it
+  inst.computeBoundingSphere();
+  inst.frustumCulled = true;
   return inst;
 }
 
@@ -267,11 +267,16 @@ export class EngineTrail {
     this.vel[i * 3] = v.x; this.vel[i * 3 + 1] = v.y; this.vel[i * 3 + 2] = v.z;
     this.base[i * 3] = r; this.base[i * 3 + 1] = g; this.base[i * 3 + 2] = b;
     this.life[i] = life; this.life0[i] = life;
+    this.anyLive = true;
   }
 
   update(dt) {
+    // skip the whole 480-particle loop + two buffer uploads when idle
+    // (parked / landed / no thrust) — the common on-foot case
+    if (!this.anyLive) { this.points.visible = false; return; }
     const pa = this.geo.attributes.position.array;
     const ca = this.geo.attributes.color.array;
+    let live = 0;
     for (let i = 0; i < this.max; i++) {
       if (this.life[i] > 0) {
         this.life[i] -= dt;
@@ -281,10 +286,13 @@ export class EngineTrail {
         const f = Math.max(this.life[i] / this.life0[i], 0);
         pa[i * 3] = this.pos[i * 3]; pa[i * 3 + 1] = this.pos[i * 3 + 1]; pa[i * 3 + 2] = this.pos[i * 3 + 2];
         ca[i * 3] = this.base[i * 3] * f; ca[i * 3 + 1] = this.base[i * 3 + 1] * f; ca[i * 3 + 2] = this.base[i * 3 + 2] * f;
+        if (this.life[i] > 0) live++;
       } else {
         ca[i * 3] = 0; ca[i * 3 + 1] = 0; ca[i * 3 + 2] = 0;
       }
     }
+    this.points.visible = true;
+    this.anyLive = live > 0;
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.color.needsUpdate = true;
   }
