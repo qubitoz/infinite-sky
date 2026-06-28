@@ -94,7 +94,7 @@ export class AudioSys {
     const windT = atmoF * (s.mode === 'walk' ? 0.05 : 0.04 + speedK * 0.14);
     this._to(this.windGain.gain, windT, dt);
     this._to(this.windBP.frequency, 280 + s.speed * 2.2, dt, 3);
-    this._to(this.padGain.gain, 0.05 * (1 - atmoF * 0.75), dt, 2);
+    this._to(this.padGain.gain, (this.portMode ? 0.09 : 0.05) * (1 - atmoF * 0.55), dt, 2);
   }
 
   _env(type, freq, t0, dur, peak = 0.18, slide = 0) {
@@ -184,5 +184,22 @@ export class AudioSys {
       this._env('sine', f, t + i * 0.1, 0.55, 0.09);
       this._env('triangle', f / 2, t + i * 0.1, 0.4, 0.05);
     });
+  }
+
+  // ambient pad brightens while inside a spaceport
+  setPortMode(on) { this.portMode = on; }
+
+  // warm 4-note welcome arpeggio when docking at a port
+  portChime() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    [392, 523.25, 659.25, 880].forEach((f, i) => this._env('triangle', f, t + i * 0.11, 0.5, 0.08));
+  }
+
+  // soft fanfare on unlocking an achievement
+  award() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    [659.25, 880, 1318.5].forEach((f, i) => this._env('sine', f, t + i * 0.08, 0.4, 0.09));
   }
 }

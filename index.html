@@ -181,6 +181,20 @@
     padding:18px 0 10px;opacity:.85}
   #kiosk .k-tease{font-size:14px;letter-spacing:1px;color:var(--ink);text-align:center}
 
+  /* achievements panel */
+  #achv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;max-width:94vw;
+    max-height:78vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:20px 26px;display:none}
+  #achv.on{display:block}
+  #achv h3{font-family:'Orbitron';font-size:16px;letter-spacing:4px;color:#ffd34d;margin-bottom:12px}
+  #achv .achv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+  #achv .achv-card{background:rgba(18,36,54,.5);border:1px solid rgba(170,220,255,.18);
+    padding:12px 8px;text-align:center}
+  #achv .achv-card .ic{font-size:26px;color:#ffd34d;line-height:1}
+  #achv .achv-card .nm{font-size:11px;letter-spacing:1px;color:var(--ink);margin-top:6px}
+  #achv .achv-card.locked{opacity:.4}
+  #achv .achv-card.locked .ic{color:var(--dim)}
+
   /* radar */
   #radarwrap{position:absolute;right:26px;bottom:235px;padding:12px;display:none}
   #radarwrap.on{display:block}
@@ -356,6 +370,7 @@
     <div id="hangar" class="panel"></div>
     <div id="trade" class="panel"></div>
     <div id="kiosk" class="panel"></div>
+    <div id="achv" class="panel"></div>
     <div id="radarwrap" class="panel"><canvas id="radar"></canvas><div id="radarcap"></div></div>
     <div id="confetti"></div>
     <div id="scanring"></div>

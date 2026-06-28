@@ -20,6 +20,15 @@ const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _Y = new THREE.Vector3(0, 1, 0);
 
+// per-system port palettes: [ring/beacon, hub trim]
+const THEMES = [
+  { ring: '#5ef2d6', hub: '#7fc4ff' },
+  { ring: '#ff7ab8', hub: '#ffd34d' },
+  { ring: '#ffd34d', hub: '#ff8a4a' },
+  { ring: '#b48cff', hub: '#7fc4ff' },
+  { ring: '#7fffd4', hub: '#9fe87f' },
+];
+
 function randomUnit(rand, out) {
   const u = rand() * 2 - 1, ph = rand() * Math.PI * 2, s = Math.sqrt(1 - u * u);
   return out.set(s * Math.cos(ph), u, s * Math.sin(ph));
@@ -64,6 +73,7 @@ export class SpaceportManager {
     const safe = planets.filter((p) => !p.def.biome.hazard);
     const pool = safe.length ? safe : planets;
     this.portPlanet = pool[(rand() * pool.length) | 0];
+    this.theme = THEMES[(rand() * THEMES.length) | 0]; // per-system port palette
     this.anchor = surfacePoint(this.portPlanet, randomUnit(rand, new THREE.Vector3()));
     const up = this.anchor.up;
     let ref = new THREE.Vector3(0, 1, 0);
@@ -95,15 +105,16 @@ export class SpaceportManager {
     const pad = new THREE.Group();
     pad.position.copy(A.pos);
     pad.quaternion.setFromUnitVectors(_Y, A.up);
+    const th = this.theme || THEMES[0];
     const deck = new THREE.MeshStandardMaterial({ color: '#2a313a', roughness: 0.7, metalness: 0.5, flatShading: true });
     mk(pad, new THREE.CylinderGeometry(7, 7.4, 0.4, 6), deck, 0, 0.2, 0);
-    mk(pad, new THREE.TorusGeometry(6.3, 0.18, 6, 6), new THREE.MeshBasicMaterial({ color: '#5ef2d6', toneMapped: false }), 0, 0.42, 0, Math.PI / 2);
+    mk(pad, new THREE.TorusGeometry(6.3, 0.18, 6, 6), new THREE.MeshBasicMaterial({ color: th.ring, toneMapped: false }), 0, 0.42, 0, Math.PI / 2);
     mk(pad, new THREE.SphereGeometry(2.6, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
       new THREE.MeshStandardMaterial({ color: '#3a4450', roughness: 0.4, metalness: 0.7, flatShading: true }), 0, 0.35, 0);
-    mk(pad, new THREE.TorusGeometry(2.6, 0.12, 6, 14), new THREE.MeshBasicMaterial({ color: '#7fc4ff', toneMapped: false }), 0, 0.7, 0, Math.PI / 2);
+    mk(pad, new THREE.TorusGeometry(2.6, 0.12, 6, 14), new THREE.MeshBasicMaterial({ color: th.hub, toneMapped: false }), 0, 0.7, 0, Math.PI / 2);
     mk(pad, new THREE.CylinderGeometry(0.18, 0.28, 9, 6), deck, 0, 4.7, 0);
     const beacon = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: this.glowTex, color: '#5ef2d6', transparent: true, opacity: 0.9,
+      map: this.glowTex, color: th.ring, transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     beacon.scale.set(5, 5, 1);

@@ -20,8 +20,8 @@ const SETS = {
   landing: [],
   landed: [
     ['takeoff', 'Space', false, 'tb.takeoff'], ['exit', 'KeyF', false, 'tb.exit'],
-    ['hangar', 'KeyG', false, 'tb.hangar'], ['catalog', 'KeyB', false, 'tb.catalog'],
-    ['radar', 'KeyM', false, 'tb.radar'],
+    ['hangar', 'KeyG', false, 'tb.hangar'], ['achv', 'KeyK', false, 'tb.achv'],
+    ['catalog', 'KeyB', false, 'tb.catalog'], ['radar', 'KeyM', false, 'tb.radar'],
   ],
   walk: [
     ['jet', 'Space', true, 'tb.jet'], ['run', 'ShiftLeft', true, 'tb.run'],

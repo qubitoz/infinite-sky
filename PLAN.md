@@ -107,7 +107,12 @@ CARTAS ESTELARES (revelar en radar), VESTUARIO (prendas), GADGETS (Opción B).
   COSECHADORA (flora→materiales, mantén E), CAÑÓN DE BENGALAS (revienta geodas
   cósmicas en el espacio por gemas — acción Opción B), VARITA DE BURBUJAS
   (burbujas que alegran criaturas). **Los 6 kioscos del puerto funcionan.**
-- **Fase E** — pulido (temas de puerto, FX de llegada, música, logros).
+- **Fase E ✓ HECHA** — pulido: tema visual por puerto (paleta determinista),
+  FX de llegada (toast de bienvenida + anillo + chime + música ambiente del
+  puerto), y **10 LOGROS** (tecla K) con toast al desbloquear y persistencia.
+
+**FASE 6 (PUERTOS ESPACIALES) COMPLETA.** Ver `OPTIM.md` para el plan de
+optimización pendiente (los hallazgos de rendimiento, a aplicar con cuidado).
 
 ## Fase 5 — Social
 

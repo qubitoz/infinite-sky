@@ -15,6 +15,7 @@ import { buildAvatar } from './avatar.js';
 import { MATERIALS, PIECES, buildPiece, Inventory, PickupManager, outfitShopList } from './gear.js';
 import { UPGRADES, DEFAULT_UPGRADES, fx } from './upgrades.js';
 import { CHARTS, GADGETS, GadgetManager } from './gadgets.js';
+import { ACHIEVEMENTS } from './achievements.js';
 import { SiteManager } from './sites.js';
 import { SpaceportManager } from './spaceport.js';
 import { makeGalaxy, systemSeedFor } from './galaxy.js';
@@ -122,6 +123,18 @@ const saveCharts = () => { try { localStorage.setItem(`infsky-charts-${profile}-
 const saveGadgets = () => { try { localStorage.setItem(`infsky-gadgets-${profile}`, JSON.stringify([...ownedGadgets])); } catch { /* fine */ } };
 const _beamFrom = new THREE.Vector3();
 let currentKiosk = null;
+let achv = new Set();
+const SHIP_KEYS = Object.keys(SHIPS);
+const ACHV_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
+const saveAchv = () => { try { localStorage.setItem(`infsky-achv-${profile}`, JSON.stringify([...achv])); } catch { /* fine */ } };
+function unlockAch(id) {
+  if (achv.has(id)) return;
+  achv.add(id);
+  saveAchv();
+  const a = ACHV_BY_ID[id];
+  hud.achievement(a.icon, pick(a.name));
+  audio.award();
+}
 const upgrades = { ...DEFAULT_UPGRADES };
 player.upgrades = upgrades; // ship-stat levels read in player.updateFly
 const saveUpgrades = () => {
@@ -132,6 +145,11 @@ function awardStelars(n, reason) {
   inventory.earn(n);
   hud.setStelars(inventory.estelars);
   hud.toast(reason, `+${n} ★`);
+  if (inventory.estelars >= 500) unlockAch('rich');
+}
+function gotShip() {
+  unlockAch('newship');
+  if (SHIP_KEYS.every((k) => ownedShips.includes(k))) unlockAch('fleet');
 }
 let ownedPaints = [];
 let paintMap = {};
@@ -171,6 +189,7 @@ player.onLanded = (planet) => {
     saveLanded();
   }
   radar.force('planet');
+  unlockAch('firstland');
 };
 
 // landing beacon: pillar of light over the parked ship while on foot
@@ -255,6 +274,10 @@ function loadSaves() {
   try { Object.assign(upgrades, JSON.parse(localStorage.getItem(`infsky-upgrades-${profile}`) || '{}')); } catch { /* fresh */ }
   try { charts = new Set(JSON.parse(localStorage.getItem(`infsky-charts-${profile}-${seed}`) || '[]')); } catch { charts = new Set(); }
   try { ownedGadgets = new Set(JSON.parse(localStorage.getItem(`infsky-gadgets-${profile}`) || '[]')); } catch { ownedGadgets = new Set(); }
+  try { achv = new Set(JSON.parse(localStorage.getItem(`infsky-achv-${profile}`) || '[]')); } catch { achv = new Set(); }
+  if (visited.size >= 2) achv.add('explorer'); // crossed systems already
+  if (ownedShips.length > 1) achv.add('newship');
+  if (SHIP_KEYS.every((k) => ownedShips.includes(k))) achv.add('fleet');
   hud.setWorlds(discoveredCount(), planets.length);
   hud.setSpecies(discoveredFauna.size, allSpecies.length);
   fetchFirstBy(seed).then((m) => { firstBy = m; });
@@ -287,6 +310,7 @@ function collectPartItem(nearestPlanet, part) {
   if (res.done) {
     if (!ownedShips.includes(res.ship)) ownedShips.push(res.ship);
     saveShips();
+    gotShip();
     hud.toast(t('toast.shipRepaired'), pick(SHIPS[res.ship].name));
     hud.celebrate();
     audio.celebrate();
@@ -432,6 +456,7 @@ let fireCD = 0;
 let lastAtmoPlanet = null;
 let callTimer = 3;
 let pulsePrev = false;
+let portPrev = false;
 const clock = new THREE.Clock();
 
 // lightweight fps meter (?fps=1) so testers can report real device numbers
@@ -459,6 +484,7 @@ const loop = () => {
   if (started && input.locked) {
     if (input.pressed('KeyH')) hud.toggleHelp();
     if (input.pressed('KeyX')) toggleLang();
+    if (input.pressed('KeyK')) hud.toggleAchievements(achv);
     if (input.pressed('KeyB')) hud.toggleCatalog(allSpecies, discoveredFauna, planets, firstBy);
     if (input.pressed('KeyO')) hud.toggleOutfit(inventory);
     if (input.pressed('KeyG')) hud.toggleHangar(ownedShips, ship.variantKey, inventory, paintsState());
@@ -507,7 +533,7 @@ const loop = () => {
               }
             } else if (inventory.spend(e.price)) {
               ownedShips.push(e.key);
-              ship.setVariant(e.key); applyPaint(); saveShips();
+              ship.setVariant(e.key); applyPaint(); saveShips(); gotShip();
               hud.setStelars(inventory.estelars);
               hud.toast(t('toast.bought'), pick(SHIPS[e.key].name));
               hud.celebrate(); audio.jingle();
@@ -623,6 +649,7 @@ const loop = () => {
         if (!discoveredFauna.has(c.spec.id)) {
           discoveredFauna.add(c.spec.id);
           fresh++;
+          unlockAch('firstscan');
           hud.toast(t('toast.newSpecies'),
             `${c.spec.name} — ${c.spec.archetype.toUpperCase()} · ${c.spec.planetName}`);
           reportDiscovery({
@@ -640,6 +667,7 @@ const loop = () => {
         const sp = nearest.species || [];
         if (sp.length && sp.every((s) => discoveredFauna.has(s.id))) {
           hud.toast(t('toast.planetDone'), nearest.def.name);
+          unlockAch('worldfauna');
           awardStelars(50, t('toast.bonusFauna'));
           hud.celebrate();
           audio.celebrate();
@@ -682,6 +710,20 @@ const loop = () => {
     started && player.mode === 'walk');
   spaceport.update(dt, started ? player.bodyPos() : camera.position, started);
 
+  // docking: welcome FX + ambient port music while standing in the spaceport
+  const atPort = started && player.mode !== 'fly' && spaceport.isPortPlanet(nearest)
+    && spaceport.anchor && player.bodyPos().distanceTo(spaceport.anchor.pos) < 46;
+  if (atPort !== portPrev) {
+    portPrev = atPort;
+    audio.setPortMode(atPort);
+    if (atPort) {
+      hud.toast(t('port.welcome'), system.name);
+      hud.scanFx();
+      audio.portChime();
+      unlockAch('firstport');
+    }
+  }
+
   // ---- gadgets: fire flares/bubbles + maintain cosmic geode targets
   fireCD -= dt;
   if (started && input.locked) {
@@ -705,6 +747,7 @@ const loop = () => {
       if (ev.type === 'geode') {
         inventory.add('gem'); inventory.add('gem');
         awardStelars(10, t('toast.geode'));
+        unlockAch('firstgeode');
         hud.celebrate(); audio.jingle();
       } else if (ev.type === 'bubble') {
         if (creatureMgr.nearestList(ev.pos, 14, 1)[0]) awardStelars(2, t('toast.bubblePop'));
@@ -776,6 +819,7 @@ const loop = () => {
           const mats = nearest.def.biome.materials;
           const mat = mats[(Math.random() * mats.length) | 0];
           const n = inventory.add(mat);
+          unlockAch('firstharvest');
           hud.toast(`+1 ${pick(MATERIALS[mat].name)}`, `${n} ${t('toast.total')}`);
           audio.blip(620);
           if (hud.outfitOn) hud.renderOutfit(inventory);
@@ -1053,6 +1097,7 @@ window.__game = {
   radar, sites, galaxy, ship, hyperjump, weather, mining, spaceport, gadgetMgr,
   get ownedShips() { return ownedShips; },
   get charts() { return charts; }, get ownedGadgets() { return ownedGadgets; },
+  get achv() { return achv; }, unlockAch,
   step(n = 1, dt = 1 / 60) {
     FIXED_DT = dt;
     for (let i = 0; i < n; i++) loop();

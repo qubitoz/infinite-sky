@@ -7,6 +7,7 @@ import { MATERIALS, PIECES, SELL_VALUE, reserveFor, outfitShopList } from './gea
 import { SHIPS, PAINTS, SHIP_SHOP } from './ship.js';
 import { UPGRADES } from './upgrades.js';
 import { CHARTS, GADGETS } from './gadgets.js';
+import { ACHIEVEMENTS } from './achievements.js';
 import { t, pick } from './i18n.js';
 
 const _v = new THREE.Vector3();
@@ -17,7 +18,7 @@ const HELP_KEYS = [
   ['SHIFT', 'help.shift'], ['J / TAB', 'help.j'], ['SPACE', 'help.space'],
   ['L', 'help.l'], ['F', 'help.f'], ['C', 'help.c'], ['B', 'help.b'],
   ['E', 'help.e'], ['O', 'help.o'], ['V', 'help.v'], ['M', 'help.m'], ['G', 'help.g'],
-  ['←/→ + ENTER', 'help.arrows'], ['X', 'help.x'], ['N', 'help.n'], ['H', 'help.h'],
+  ['K', 'help.k'], ['←/→ + ENTER', 'help.arrows'], ['X', 'help.x'], ['N', 'help.n'], ['H', 'help.h'],
 ];
 
 export class HUD {
@@ -28,7 +29,7 @@ export class HUD {
       hud: $('hud'), speed: $('speed'), alt: $('altline'),
       thr: $('thr'), thrv: $('thrv'), bst: $('bst'), pls: $('pls'),
       sysname: $('sysname'), worlds: $('worlds'), species: $('species'), toasts: $('toasts'),
-      estelars: $('estelars'), kiosk: $('kiosk'),
+      estelars: $('estelars'), kiosk: $('kiosk'), achv: $('achv'),
       pcard: $('pcard'), hint: $('hint'), help: $('help'), catalog: $('catalog'),
       outfit: $('outfit'), confetti: $('confetti'), hangar: $('hangar'), trade: $('trade'),
       lblthr: $('lblthr'), lblbst: $('lblbst'), lblpls: $('lblpls'), loadtxt: $('loading'),
@@ -41,6 +42,8 @@ export class HUD {
     this.tradeOn = false;
     this.kioskOn = false;
     this._kioskArgs = null;
+    this.achvOn = false;
+    this._achvSet = null;
     this._stelars = 0;
     this.markerPool = [];
     this.cardKey = null;
@@ -97,6 +100,7 @@ export class HUD {
     if (this.hangarOn && this._hangarArgs) this.renderHangar(...this._hangarArgs);
     if (this.tradeOn && this._tradeArgs) this.renderTrade(...this._tradeArgs);
     if (this.kioskOn && this._kioskArgs) this.renderKiosk(...this._kioskArgs);
+    if (this.achvOn && this._achvSet) this.renderAchievements(this._achvSet);
   }
 
   closePanels() {
@@ -105,6 +109,31 @@ export class HUD {
     this.hangarOn = false; this.els.hangar.classList.remove('on');
     this.tradeOn = false; this.els.trade.classList.remove('on');
     this.kioskOn = false; this.els.kiosk.classList.remove('on');
+    this.achvOn = false; this.els.achv.classList.remove('on');
+  }
+
+  toggleAchievements(set) {
+    const turnOn = !this.achvOn;
+    this.closePanels();
+    this.achvOn = turnOn;
+    this.els.achv.classList.toggle('on', turnOn);
+    if (turnOn) this.renderAchievements(set);
+  }
+
+  renderAchievements(set) {
+    this._achvSet = set;
+    const got = ACHIEVEMENTS.filter((a) => set.has(a.id)).length;
+    let html = `<h3>${t('achv.title')} · ${got}/${ACHIEVEMENTS.length}</h3><div class="achv-grid">`;
+    for (const a of ACHIEVEMENTS) {
+      const has = set.has(a.id);
+      html += `<div class="achv-card${has ? '' : ' locked'}"><div class="ic">${has ? a.icon : '?'}</div><div class="nm">${has ? pick(a.name) : t('achv.locked')}</div></div>`;
+    }
+    html += '</div>';
+    this.els.achv.innerHTML = html;
+  }
+
+  achievement(icon, name) {
+    this.toast(t('achv.unlocked'), `${icon} ${name}`);
   }
 
   setStelars(n) {
