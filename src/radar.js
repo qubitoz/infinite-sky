@@ -136,6 +136,7 @@ export class Radar {
         if (p.state >= 2) this.dot(px, py, 7, p.state === 3 ? '#ffd34d' : '#5ef2d6', true);
       }
       if (p.hazard) this.dot(px, py, p.state >= 2 ? 9.5 : 7, '#ff8a4a', true);
+      if (p.site) this.dot(px + 7, py - 7, 2, '#ffd34d'); // prospector: wreck/ruins
       if (p.port) {
         c.strokeStyle = '#5ef2d6';
         c.beginPath(); c.arc(px, py, 8.5, 0, Math.PI * 2); c.stroke();

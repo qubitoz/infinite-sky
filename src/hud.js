@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { MATERIALS, PIECES, SELL_VALUE, reserveFor, outfitShopList } from './gear.js';
 import { SHIPS, PAINTS, SHIP_SHOP } from './ship.js';
 import { UPGRADES } from './upgrades.js';
+import { CHARTS, GADGETS } from './gadgets.js';
 import { t, pick } from './i18n.js';
 
 const _v = new THREE.Vector3();
@@ -15,7 +16,7 @@ const HELP_KEYS = [
   ['MOUSE', 'help.mouse'], ['W / S', 'help.ws'], ['A / D', 'help.ad'],
   ['SHIFT', 'help.shift'], ['J / TAB', 'help.j'], ['SPACE', 'help.space'],
   ['L', 'help.l'], ['F', 'help.f'], ['C', 'help.c'], ['B', 'help.b'],
-  ['E', 'help.e'], ['O', 'help.o'], ['M', 'help.m'], ['G', 'help.g'],
+  ['E', 'help.e'], ['O', 'help.o'], ['V', 'help.v'], ['M', 'help.m'], ['G', 'help.g'],
   ['←/→ + ENTER', 'help.arrows'], ['X', 'help.x'], ['N', 'help.n'], ['H', 'help.h'],
 ];
 
@@ -151,6 +152,19 @@ export class HUD {
         const meta = item.kind === 'set' ? t('kiosk.set') : t('slot.' + item.slot);
         const tag = owned ? t('kiosk.owned') : `${item.price} ★`;
         html += `<div class="piece${owned ? ' eq' : ''}"><b>${i + 1}</b> ${pick(item.name)} <span>${meta} · ${tag}</span></div>`;
+      });
+      html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
+      this.els.kiosk.innerHTML = html;
+      return;
+    }
+    if (kiosk.id === 'maps' || kiosk.id === 'gadgets') {
+      const cat = kiosk.id === 'maps' ? CHARTS : GADGETS;
+      const owned = (kiosk.id === 'maps' ? ctx.charts : ctx.gadgets) || new Set();
+      html += `<div class="k-bal">★ ${inv.estelars}</div><div class="pieces">`;
+      cat.forEach((it, i) => {
+        const has = owned.has(it.id);
+        const tag = has ? t('kiosk.owned') : `${it.price} ★`;
+        html += `<div class="piece${has ? ' eq' : ''}"><b>${i + 1}</b> <i class="sw" style="background:${it.color}"></i>${pick(it.name)} <span>${pick(it.desc)} · ${tag}</span></div>`;
       });
       html += `</div><div class="o-hint">${t('kiosk.buyHint')}</div>`;
       this.els.kiosk.innerHTML = html;

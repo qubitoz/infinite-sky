@@ -102,8 +102,11 @@ CARTAS ESTELARES (revelar en radar), VESTUARIO (prendas), GADGETS (Opción B).
   al comprar/tocar) + VESTUARIO (4 prendas premium + Conjunto Explorador, con ★).
 - **Fase C ✓ HECHA** — MEJORAS: niveles 0-3 de MOTOR (velocidad), MOTOR DE PULSO
   (carga), ESCÁNER (alcance), LÁSER MINERO (velocidad), RECOLECTOR (radio), con ★.
-- **Fase D** — CARTAS ESTELARES (revelar planetas/vetas/ruinas) + GADGETS
-  (láser minero, cañón de bengalas Opción B, dron de fotos) + **flora explotable**.
+- **Fase D ✓ HECHA** — CARTAS ESTELARES (Carta del Sistema revela planetas,
+  Carta de Prospector marca naufragios/ruinas en el radar) + GADGETS:
+  COSECHADORA (flora→materiales, mantén E), CAÑÓN DE BENGALAS (revienta geodas
+  cósmicas en el espacio por gemas — acción Opción B), VARITA DE BURBUJAS
+  (burbujas que alegran criaturas). **Los 6 kioscos del puerto funcionan.**
 - **Fase E** — pulido (temas de puerto, FX de llegada, música, logros).
 
 ## Fase 5 — Social
