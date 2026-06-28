@@ -116,13 +116,28 @@ con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
 
 ---
 
-## Lote 5 — Resolución adaptativa (riesgo medio) — degradar con gracia
+## Lote 5 — Resolución adaptativa (riesgo medio) — degradar con gracia ✅ PARCIAL (2026-06-28)
 
-- **5.1 — pixelRatio adaptativo** (`main.js:~47`): muestrear frame-time (la infra `?fps`
-  ya existe) y bajar 1.5→1.25→1.0 al exceder presupuesto, subir al estar cómodo. Es la
-  válvula de seguridad que hoy falta cuando un GPU débil no sostiene la atmósfera lush.
-- **5.2 — Reconsiderar `logarithmicDepthBuffer`** en la ruta LQ (añade coste por fragmento
-  en todos los shaders). Evaluar si se puede vivir sin él en móvil con near/far ajustados.
+> Solo **5.1** aplicado (verificado, perf-verifier APROBADO; lógica probada con harness
+> aislado 11/11). Diseño vía workflow (3 propuestas → juez sintetizó base "single-EMA" +
+> injertos del diseño robusto). **5.2 diferido a propósito**: quitar `logarithmicDepthBuffer`
+> con near=0.3/far=4e6 (ratio 1.33e7) da z-fighting catastrófico, sobre todo en el despegue
+> (terreno cercano + planetas lejanos en el mismo frame); capturar el early-Z exigiría
+> near/far dinámico o depth flotante invertido (un subsistema, no un tweak LQ). logDepth
+> queda en TRUE en ambas rutas. Solo renderer/cámara — `height3`/`sampleAt` intactos.
+
+- **5.1 ✅ — pixelRatio adaptativo** (`main.js`): controlador `arTick()` hoisted (cero
+  asignación por-frame) tras `renderer.render`. EMA del frame-time real (α=0.1); escalera
+  `PR_CAP→1.0` en pasos 0.25 (`PR_CAP = min(devicePixelRatio, QUAL.pr)`). **Baja** si EMA
+  >20.5ms sostenido 0.5s; **sube** si EMA < `min(17, floor·1.05)` sostenido 3s — el umbral
+  de subida se ata al **piso de frame-time observado** (resuelve la ambigüedad del cap de
+  vsync). Cooldown 1.5s + supresión por-peldaño 12s del rung del que se bajó (anti-thrash).
+  **Inerte bajo `step()`** (`FIXED_DT != null`). HUD/radar son DOM/canvas-2D → solo el
+  render 3D se suaviza; la UI legible queda nítida. El handler de `resize` reasume el rung.
+  Arranque idéntico a hoy (`arPrIdx=0` = cap). Chip `?fps=1` muestra el rung (`· x1.5`).
+- **5.2 ⏸️ DIFERIDO** — Reconsiderar `logarithmicDepthBuffer` en LQ. NO seguro: z-fighting
+  catastrófico a near0.3/far4e6 en el despegue. Necesita near/far dinámico o reversed-Z
+  float, gated tras playtest (on-foot orilla + ascenso). Ver nota arriba. Feature futura.
 
 ---
 
@@ -137,6 +152,22 @@ Cada criatura es un `THREE.Group` clonado de ~13 meshes separados (no instanciad
   shader, o solo las más cercanas) o impostor para las lejanas.
 - **6.3 — Props:** reducir radio/conteo de tiles en móvil, cull del césped a radio más
   corto, repartir `buildTile` entre frames, merge de mismo-template entre tiles vecinos.
+
+---
+
+## 📌 Post-Lote 6 — pendientes acordados con el usuario (recordar al cerrar el plan)
+
+- **Billboard-LOD de planetas lejanos** (rescata el ahorro del 4.1 diferido). El far plane
+  es 4M y los 7 planetas se ven como discos desde el spawn (0.3°–5.7°), por eso `farMesh`
+  no se puede diferir sin borrar mundos del cielo. Plan: a distancia extrema sustituir el
+  `farMesh` (sphere de N×N verts con vértices desplazados por `height3` low) por un **sprite
+  billboard barato** (un disco con color/atmo del bioma), y solo construir `farMesh`/shells
+  reales cuando el planeta cruza un umbral de cercanía. Quita el stall de arranque en frío
+  (construir 6–11 esferas + texturas de nube de golpe) y baja VRAM de mundos no visitados,
+  SIN regresión visual. Opción intermedia más simple del verificador: diferir solo
+  `buildShells` (no `farMesh`) con cuidado del substream de PRNG (reservar/precalcular el
+  consumo de `this.rand` para que el orden determinista se preserve al diferirse).
+  **Acordado 2026-06-28: ejecutar DESPUÉS del Lote 6.**
 
 ---
 

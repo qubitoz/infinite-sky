@@ -426,9 +426,68 @@ document.addEventListener('pointerlockchange', () => {
   if (started) pausedEl.classList.toggle('on', !input.locked);
 });
 
+// ---- adaptive resolution (Lote 5.1) ---------------------------------------
+// When a weak GPU can't hold frame budget, step the WebGL drawing-buffer pixel
+// ratio down (toward 1.0) and back up when there is real headroom. The HUD and
+// radar are DOM / 2D-canvas, so only the 3D view softens — readable UI stays
+// crisp at any ratio. Vsync floors the observed frame time near the refresh
+// period and hides true headroom, so a RAISE is gated on the running observed
+// frame-time floor (not a fixed 60Hz line); hysteresis + cooldown + per-rung
+// raise-suppression keep it from oscillating. The controller lives in the loop
+// (below) and is inert under the headless step() hook.
+const PR_CAP = renderer.getPixelRatio(); // == min(devicePixelRatio, QUAL.pr)
+const PR_LADDER = (() => {
+  const a = [];
+  for (let v = PR_CAP; v > 1.0 + 1e-3; v -= 0.25) a.push(Math.round(v * 100) / 100);
+  a.push(1.0);
+  return [...new Set(a)];
+})();
+const PR_LAST = PR_LADDER.length - 1;
+let arPrIdx = 0;                         // 0 = sharpest (cap); startup == today's static ratio
+let arEmaMs = 16.7, arFloorMs = Infinity, arLastTs = performance.now();
+let arAbove = 0, arBelow = 0, arCooldown = 0, arNowS = 0;
+const arSuppress = new Float64Array(PR_LADDER.length); // per-rung raise-block deadlines (arNowS)
+const arApplyPR = (r) => { renderer.setPixelRatio(r); renderer.setSize(innerWidth, innerHeight); };
+// hoisted (allocated once, not per-frame) so the loop adds no GC pressure. Early returns
+// exit only the controller. Inert under the headless step() hook (FIXED_DT != null).
+const arTick = () => {
+  if (FIXED_DT !== null) { arLastTs = performance.now(); return; } // step(): don't poison the EMA
+  const now = performance.now();
+  const raw = now - arLastTs; arLastTs = now;
+  if (raw <= 0 || raw > 1000) return;            // first frame / tab-restore garbage
+  const sec = raw / 1000; arNowS += sec;
+  arEmaMs += (raw - arEmaMs) * 0.1;              // always-on EMA of true frame time
+  if (arEmaMs < arFloorMs) arFloorMs = arEmaMs;  // running observed floor (vsync-headroom proxy)
+  if (arCooldown > 0) { arCooldown -= sec; arAbove = 0; arBelow = 0; return; } // swallow realloc hitch
+  // DROP fast when sustained over budget
+  if (arEmaMs > 20.5) {
+    arAbove += sec; arBelow = 0;
+    if (arAbove >= 0.5 && arPrIdx < PR_LAST) {
+      arSuppress[arPrIdx] = arNowS + 12;         // don't climb back into this rung for 12s
+      arPrIdx++; arApplyPR(PR_LADDER[arPrIdx]);
+      arCooldown = 1.5; arAbove = 0; arFloorMs = Infinity;
+    }
+    return;
+  }
+  arAbove = 0;
+  // RAISE only near the best this rung has actually achieved (true headroom under vsync)
+  const quietLine = Math.min(17, arFloorMs * 1.05);
+  const target = arPrIdx - 1;
+  if (arEmaMs < quietLine && target >= 0 && arNowS >= arSuppress[target]) {
+    arBelow += sec;
+    if (arBelow >= 3.0) {
+      arPrIdx = target; arApplyPR(PR_LADDER[arPrIdx]);
+      arCooldown = 1.5; arBelow = 0; arFloorMs = Infinity; // re-learn floor; do NOT reset arEmaMs
+    }
+    return;
+  }
+  arBelow = 0;                                   // any non-quiet / suppressed frame resets the climb
+};
+
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  renderer.setPixelRatio(PR_LADDER[arPrIdx]); // controller owns DPR — re-assert the current rung
   renderer.setSize(innerWidth, innerHeight);
 });
 
@@ -1059,13 +1118,15 @@ const loop = () => {
   input.endFrame();
   renderer.render(scene, camera);
 
+  arTick(); // adaptive resolution controller (Lote 5.1) — inert under step()
+
   if (fpsEl) {
     const now = performance.now();
     fpsFrames++;
     fpsClock += now - fpsLast;
     fpsLast = now;
     if (fpsClock >= 500) {
-      fpsEl.textContent = `${Math.round((fpsFrames * 1000) / fpsClock)} FPS · ${QUAL.aa ? 'HQ' : 'LQ'}`;
+      fpsEl.textContent = `${Math.round((fpsFrames * 1000) / fpsClock)} FPS · ${QUAL.aa ? 'HQ' : 'LQ'} · x${PR_LADDER[arPrIdx]}`;
       fpsFrames = 0;
       fpsClock = 0;
     }
