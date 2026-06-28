@@ -235,7 +235,7 @@ export class Planet {
       this.group.add(water);
     }
     if (biome.cloud.density > 0.05) {
-      const tex = makeCloudTexture(this.rand, biome.cloud.density, biome.cloud.color);
+      const tex = makeCloudTexture(this.rand, biome.cloud.density, biome.cloud.color, this.lowQ);
       this.clouds = new THREE.Mesh(
         new THREE.SphereGeometry(this.R * 1.05, 48, 32),
         new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }),

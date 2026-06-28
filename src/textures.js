@@ -66,18 +66,28 @@ export function makeDetailMaps(rand) {
   return { map, normal };
 }
 
-export function makeCloudTexture(rand, density, colorHex) {
-  const W = 1024, H = 512;
+export function makeCloudTexture(rand, density, colorHex, lowQ = false) {
+  // LQ/touch halves the texture (4x fewer pixels to fill at cold start, ~4x less VRAM)
+  // and skips the mipmap chain. tileableNoise consumes rand() by cell count, not by
+  // W/H, so the cloud shape and the planet PRNG sequence are identical across qualities.
+  const W = lowQ ? 512 : 1024, H = lowQ ? 256 : 512;
   const n = tileableNoise(rand, W, H, 10, 5, 5, 0.58);
   const c = new THREE.Color(colorHex);
   const thr = 0.62 - density * 0.22;
-  return canvasTex(W, H, (d, w, h) => {
+  const tex = canvasTex(W, H, (d, w, h) => {
     for (let i = 0; i < w * h; i++) {
       const a = Math.pow(Math.max(0, Math.min(1, (n[i] - thr) / 0.24)), 1.4);
       d[i * 4] = c.r * 255; d[i * 4 + 1] = c.g * 255; d[i * 4 + 2] = c.b * 255;
       d[i * 4 + 3] = a * 215;
     }
   });
+  if (lowQ) {
+    // no mipmaps -> must use a non-mipmap min filter or the sampler reads undefined levels
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+  }
+  return tex;
 }
 
 export function makeRingTexture(rand, tintHex) {

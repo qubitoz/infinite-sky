@@ -95,13 +95,24 @@ con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
 
 ---
 
-## Lote 4 — Carga diferida y memoria de planetas (riesgo medio)
+## Lote 4 — Carga diferida y memoria de planetas (riesgo medio) ✅ PARCIAL (2026-06-28)
 
-- **4.1 — Diferir `buildShells()`/`buildFarMesh()`** hasta que el planeta sea el más
-  cercano (espejar el patrón LOD que ya existe) en vez de construir los 6–11 al cargar.
-  Quita el stall de arranque en frío y baja VRAM/RAM de planetas nunca visitados.
-- **4.2 — Textura de nubes 512×256 en LQ/touch** (hoy 1024×512 = 524k iteraciones JS y
-  ~16–20 MB residentes), con `generateMipmaps:false` + filtro lineal.
+> Aplicado solo **4.2** (verificado, perf-verifier APROBADO). **4.1 diferido a propósito**:
+> medido en runtime, el far plane de la cámara es 4,000,000 y los 7 planetas del sistema
+> caen DENTRO de él desde el spawn, con tamaño angular de 0.3°–5.7° (hasta 10× la luna).
+> Es decir, los mundos lejanos se ven como discos en el cielo vía `farMesh`; diferirlo los
+> haría desaparecer = regresión visual del "ves otros mundos en el cielo". 4.1 requiere un
+> rediseño de LOD a distancia (billboard/sprite barato para el disco lejano + teardown),
+> no un tweak in-place seguro. Se deja como feature futura, no como lote de optimización.
+
+- **4.1 ⏸️ DIFERIDO** — Diferir `buildShells()`/`buildFarMesh()` hasta que el planeta sea
+  el más cercano. NO seguro tal cual: los planetas lejanos son visibles desde el spawn
+  (far plane 4M, ≤5.7°). Necesita billboard-LOD, ver nota arriba.
+- **4.2 ✅ — Textura de nubes 512×256 en LQ/touch** (antes 1024×512), con
+  `generateMipmaps:false` + `LinearFilter`. `makeCloudTexture` gana un 4º arg `lowQ`;
+  `tileableNoise` consume `rand()` por nº de celdas (no por W/H) → cero divergencia de
+  PRNG: misma forma de nube y mismo consumo de semilla. 4× menos píxeles a rellenar en
+  frío y ~4× menos VRAM de nubes en móvil. HQ intacto (1024×512 con mipmaps).
 
 ---
 
