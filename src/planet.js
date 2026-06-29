@@ -55,6 +55,43 @@ function getDetailMaps() {
   return DETAIL;
 }
 
+// One shared, tintable disc texture for the distant-planet billboard impostor:
+// a faked-3D shaded ball (light from upper-left) with a soft atmosphere halo. Tinted
+// per planet via the sprite material color; replaced by the real farMesh on approach.
+let _bbTex = null;
+function billboardTex() {
+  if (_bbTex) return _bbTex;
+  const S = 128;
+  const cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  const d = img.data;
+  const lx = -0.4, ly = -0.42; // light direction in screen space
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const i = (y * S + x) * 4;
+      const dx = (x / S - 0.5) * 2, dy = (y / S - 0.5) * 2;
+      const r = Math.hypot(dx, dy);
+      let v, a;
+      if (r <= 0.66) {
+        const sx = dx / 0.66, sy = dy / 0.66;
+        const nz = Math.sqrt(Math.max(0, 1 - sx * sx - sy * sy));
+        const lit = Math.max(0, sx * lx + sy * ly + nz * 0.85);
+        v = 0.32 + 0.78 * lit; a = 1;
+      } else {
+        const t = (r - 0.66) / 0.30; // atmosphere halo fades out
+        v = 1.0; a = Math.max(0, 1 - t); a = a * a * 0.7;
+      }
+      d[i] = d[i + 1] = d[i + 2] = Math.min(255, v * 255);
+      d[i + 3] = r > 0.96 ? 0 : a * 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  _bbTex = new THREE.CanvasTexture(cv);
+  return _bbTex;
+}
+
 // ---------------------------------------------------------------- build queue
 const queue = [];
 
@@ -131,8 +168,12 @@ export class Planet {
     this.group.add(this.chunksGroup);
     this.sunDir = this.center.clone().negate().normalize();
 
-    this.buildFarMesh();
-    this.buildShells();
+    // Distant planets start as a cheap billboard sprite; the real farMesh + shells
+    // (water/clouds/atmo/rings) are built lazily when the camera comes within range.
+    // Removes the cold-start stall of building all 6-11 worlds at once and the idle
+    // VRAM of never-visited ones, without erasing distant worlds from the sky.
+    this.realBuilt = false;
+    this.buildBillboard();
   }
 
   // ----- height field -------------------------------------------------------
@@ -264,9 +305,34 @@ export class Planet {
     }
   }
 
+  // ----- distant impostor: cheap billboard until the planet is approached ----
+  buildBillboard() {
+    // tint with a representative surface hue so distant worlds stay distinguishable
+    const tint = this.ramp.length
+      ? this.ramp[Math.min(this.ramp.length - 1, this.ramp.length >> 1)].c.clone()
+      : new THREE.Color(this.def.atmo || this.def.biome.atmo);
+    tint.lerp(_col.setRGB(1, 1, 1), 0.3); // the sprite is unlit — lift it so distant worlds read brightly
+    const mat = new THREE.SpriteMaterial({ map: billboardTex(), color: tint, transparent: true, depthWrite: false });
+    const spr = new THREE.Sprite(mat);
+    spr.scale.setScalar(this.R * 3.0); // body ~2R (texture body is 0.66 of extent) + atmo halo
+    this.billboard = spr;
+    this.group.add(spr);
+  }
+
+  // promote to the real planet (farMesh + water/clouds/atmo/rings) and hide the
+  // billboard. buildFarMesh uses no this.rand; buildShells consumes it in the same
+  // order as before, so deferring the pair preserves the seed sequence exactly.
+  buildReal() {
+    this.realBuilt = true;
+    this.buildFarMesh();
+    this.buildShells();
+    if (this.billboard) this.billboard.visible = false;
+  }
+
   // ----- quadtree LOD --------------------------------------------------------
   update(cameraPos, isNearest, dt) {
     const distC = cameraPos.distanceTo(this.center);
+    if (!this.realBuilt && distC < this.R * 50) this.buildReal();
     if (this.clouds) {
       this.clouds.rotation.y += this.def.cloudSpin * dt * 60;
       // fade the shell out when the camera is close to (or under) it

@@ -170,17 +170,16 @@ con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
 
 ## 📌 Post-Lote 6 — pendientes acordados con el usuario (recordar al cerrar el plan)
 
-- **Billboard-LOD de planetas lejanos** (rescata el ahorro del 4.1 diferido). El far plane
-  es 4M y los 7 planetas se ven como discos desde el spawn (0.3°–5.7°), por eso `farMesh`
-  no se puede diferir sin borrar mundos del cielo. Plan: a distancia extrema sustituir el
-  `farMesh` (sphere de N×N verts con vértices desplazados por `height3` low) por un **sprite
-  billboard barato** (un disco con color/atmo del bioma), y solo construir `farMesh`/shells
-  reales cuando el planeta cruza un umbral de cercanía. Quita el stall de arranque en frío
-  (construir 6–11 esferas + texturas de nube de golpe) y baja VRAM de mundos no visitados,
-  SIN regresión visual. Opción intermedia más simple del verificador: diferir solo
-  `buildShells` (no `farMesh`) con cuidado del substream de PRNG (reservar/precalcular el
-  consumo de `this.rand` para que el orden determinista se preserve al diferirse).
-  **Acordado 2026-06-28: ejecutar DESPUÉS del Lote 6.**
+- **Billboard-LOD de planetas lejanos** ✅ HECHO (2026-06-28). Cada planeta arranca con un
+  `THREE.Sprite` barato (textura de disco compartida `_bbTex`, tinte = color medio del ramp
+  aclarado 30%, `scale=R*3`); `farMesh`+shells reales se construyen lazy en `update()` cuando
+  `distC < R*50`, y el billboard se oculta. Determinismo intacto: `buildBillboard` no usa
+  `this.rand`; `buildFarMesh` (sin rand) + `buildShells` (rand) se difieren como unidad en el
+  mismo orden → secuencia de semilla idéntica (nubes/anillos iguales). Medido: al cargar se
+  construyen 3 reales (spawn + visibles ≤R*50) en vez de 7, y 4 lejanos (0.3–1.6°) quedan como
+  billboard hasta acercarse → menos stall de arranque (4 texturas de nube menos) y menos VRAM
+  de mundos no visitados. Swap R*50 verificado (55R billboard → 45R real). Trade menor: el
+  billboard unlit es algo más tenue que el farMesh lit a esa distancia (planetas diminutos).
 
 - **Merge de props mismo-template entre tiles vecinos** ✅ HECHO (2026-06-28). `this.tiles`
   ahora guarda DATOS por tile (Float32Arrays de matrices+colores), y un `InstancedMesh`
