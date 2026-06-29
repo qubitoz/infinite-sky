@@ -182,12 +182,14 @@ con **3× snoise/fragmento**), todas `depthWrite:false` → sin rechazo early-Z.
   consumo de `this.rand` para que el orden determinista se preserve al diferirse).
   **Acordado 2026-06-28: ejecutar DESPUÉS del Lote 6.**
 
-- **Merge de props mismo-template entre tiles vecinos** (resto del 6.3). Hoy cada tile ×
-  cada template = un `InstancedMesh` → ~213 draws de props en HQ (más que la fauna ya
-  instanciada). Combinar las instancias del mismo template de todos los tiles en rango en
-  UN solo `InstancedMesh` por template bajaría props a ~3–4 draws. Requiere gestionar un
-  buffer combinado que se reconstruye al entrar/salir tiles (o `BatchedMesh`, ya en el
-  bundle). Es el mayor draw-call restante; va como tarea propia tras el billboard-LOD.
+- **Merge de props mismo-template entre tiles vecinos** ✅ HECHO (2026-06-28). `this.tiles`
+  ahora guarda DATOS por tile (Float32Arrays de matrices+colores), y un `InstancedMesh`
+  fusionado por template (`this.propInsts`) que se re-empaqueta (`repackProps`, bulk
+  `Float32Array.set`) solo cuando el set de tiles cambia (`propsDirty`). Capacidad crece a
+  potencia-de-2; `instanceColor` alocado a mano (escribe `_col.r/g/b` crudo = idéntico a
+  `setColorAt`). Generación determinista intacta (mismo `rand` por tile, mismo orden).
+  Medido: **213 draws de props → 3** (1 por template), 3401 instancias lossless
+  (match true), determinismo idéntico, visual idéntico, consola limpia.
 
 ---
 

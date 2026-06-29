@@ -113,7 +113,9 @@ export class Planet {
     this.desired = new Map(); // key -> node desc
     this.queued = new Set();
     this.nodeH = new Map();
-    this.tiles = new Map();   // prop tiles
+    this.tiles = new Map();   // tileKey -> per-template instance data (mats/cols/n)
+    this.propInsts = [];      // one merged InstancedMesh per template (all tiles share it)
+    this.propsDirty = false;  // re-pack the merged buffers only when the tile set changes
     this.lodTimer = 0;
     this.discovered = false;
     this.propTemplates = makePropTemplates(biome);
@@ -496,11 +498,8 @@ export class Planet {
         }
       }
     }
-    for (const [tk, tile] of this.tiles) {
-      if (!keep.has(tk)) {
-        tile.forEach((m) => { this.group.remove(m); m.dispose(); });
-        this.tiles.delete(tk);
-      }
+    for (const tk of this.tiles.keys()) {
+      if (!keep.has(tk)) { this.tiles.delete(tk); this.propsDirty = true; }
     }
     // build nearest-first, capped per call so entering many tiles at once (landing,
     // fast flight) spreads the build cost over a few frames instead of one hitch.
@@ -513,25 +512,29 @@ export class Planet {
         this.buildTile(t.face, t.ix, t.iy, t.tk);
       }
     }
+    // collapse all tiles' instances into one InstancedMesh per template (a few draw
+    // calls total instead of one per tile×template). Only re-packs when tiles changed.
+    this.repackProps();
   }
 
   buildTile(face, ix, iy, tk) {
     const rand = mulberry32(hashStr(tk) ^ this.def.seed);
     const div = 1 << this.propLevel, size = 2 / div;
     const u0 = -1 + ix * size, v0 = -1 + iy * size;
-    const meshes = [];
     const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), sc = new THREE.Vector3();
     const up = new THREE.Vector3(), probe = new THREE.Vector3();
     const colA = new THREE.Color(), colB = new THREE.Color();
+    const byTpl = new Array(this.propTemplates.length).fill(null);
 
-    for (const tpl of this.propTemplates) {
+    for (let ti = 0; ti < this.propTemplates.length; ti++) {
+      const tpl = this.propTemplates[ti];
       // thin out only grass on mobile (the fill-heavy alpha-tested billboards);
       // trees/rocks/landmarks keep their count. rand() is still consumed first, so
       // the per-tile sequence is unchanged — only the final instance count drops.
       const densK = this.lowQ && tpl.name === 'grass' ? 0.5 : 1;
       const count = Math.round(tpl.density * 24 * (0.7 + rand() * 0.6) * densK);
       if (!count) continue;
-      const inst = new THREE.InstancedMesh(tpl.geo, tpl.mat, count);
+      const mats = new Float32Array(count * 16), cols = new Float32Array(count * 3);
       colA.set(tpl.colorA); colB.set(tpl.colorB);
       let placed = 0;
       for (let i = 0; i < count * 2 && placed < count; i++) {
@@ -552,19 +555,62 @@ export class Planet {
         _q1.premultiply(_q2);
         sc.setScalar(s);
         m4.compose(p, _q1, sc);
-        inst.setMatrixAt(placed, m4);
+        m4.toArray(mats, placed * 16);
         _col.lerpColors(colA, colB, rand());
-        inst.setColorAt(placed, _col);
+        cols[placed * 3] = _col.r; cols[placed * 3 + 1] = _col.g; cols[placed * 3 + 2] = _col.b;
         placed++;
       }
-      if (!placed) { inst.dispose(); continue; }
-      inst.count = placed;
-      inst.instanceMatrix.needsUpdate = true;
-      if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-      this.group.add(inst);
-      meshes.push(inst);
+      if (placed) byTpl[ti] = { mats: mats.subarray(0, placed * 16), cols: cols.subarray(0, placed * 3), n: placed };
     }
-    this.tiles.set(tk, meshes);
+    this.tiles.set(tk, byTpl);
+    this.propsDirty = true;
+  }
+
+  // one InstancedMesh per template, grown to power-of-two capacity as needed
+  ensurePropInst(ti, needed) {
+    let inst = this.propInsts[ti];
+    if (inst && inst.instanceMatrix.count >= needed) return inst;
+    if (inst) { this.group.remove(inst); inst.dispose(); }
+    const cap = Math.max(256, 2 ** Math.ceil(Math.log2(needed)));
+    const tpl = this.propTemplates[ti];
+    inst = new THREE.InstancedMesh(tpl.geo, tpl.mat, cap);
+    inst.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+    inst.count = 0;
+    inst.frustumCulled = false; // merged instances span the whole prop radius around you
+    inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    inst.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(inst);
+    this.propInsts[ti] = inst;
+    return inst;
+  }
+
+  // pack every live tile's instances of each template into that template's single
+  // InstancedMesh. Bulk Float32Array copies; only runs when the tile set changed.
+  repackProps() {
+    if (!this.propsDirty) return;
+    this.propsDirty = false;
+    for (let ti = 0; ti < this.propTemplates.length; ti++) {
+      let total = 0;
+      for (const byTpl of this.tiles.values()) { const e = byTpl[ti]; if (e) total += e.n; }
+      if (!total) {
+        const inst = this.propInsts[ti];
+        if (inst && inst.count) { inst.count = 0; inst.instanceMatrix.needsUpdate = true; }
+        continue;
+      }
+      const inst = this.ensurePropInst(ti, total);
+      const mArr = inst.instanceMatrix.array, cArr = inst.instanceColor.array;
+      let off = 0;
+      for (const byTpl of this.tiles.values()) {
+        const e = byTpl[ti];
+        if (!e) continue;
+        mArr.set(e.mats, off * 16);
+        cArr.set(e.cols, off * 3);
+        off += e.n;
+      }
+      inst.count = total;
+      inst.instanceMatrix.needsUpdate = true;
+      inst.instanceColor.needsUpdate = true;
+    }
   }
 
   teardown() {
@@ -576,7 +622,9 @@ export class Planet {
     this.desired.clear();
     this.queued.clear();
     this.nodeH.clear(); // recomputed cheaply; otherwise grows unbounded all session
-    for (const [, tile] of this.tiles) tile.forEach((m) => { this.group.remove(m); m.dispose(); });
+    for (const inst of this.propInsts) { if (inst) { this.group.remove(inst); inst.dispose(); } }
+    this.propInsts = [];
     this.tiles.clear();
+    this.propsDirty = false;
   }
 }
