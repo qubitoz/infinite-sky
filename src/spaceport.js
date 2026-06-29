@@ -98,6 +98,11 @@ export class SpaceportManager {
     this.portPlanet = pool[(rand() * pool.length) | 0];
     this.theme = THEMES[(rand() * THEMES.length) | 0]; // per-system port palette
     this.anchor = surfacePoint(this.portPlanet, rand);
+    // flat-plaza ground: the player walks on the deck level inside this radius instead of
+    // the bumpy terrain, so they don't fall through the base to the ground below
+    this.anchorR = this.anchor.pos.distanceTo(this.portPlanet.center);
+    this.deckR = this.anchorR + 0.4; // deck surface (plaza cylinder top)
+    this.plazaR = PORT_RING + 8;
     const up = this.anchor.up;
     let ref = new THREE.Vector3(0, 1, 0);
     if (Math.abs(up.dot(ref)) > 0.95) ref.set(1, 0, 0);
@@ -115,6 +120,17 @@ export class SpaceportManager {
   }
 
   isPortPlanet(p) { return p === this.portPlanet; }
+
+  // flat walkable floor over the plaza (deck level), blending to terrain at the rim and
+  // never below the real ground. Returns the terrain floor when away from the port.
+  flatFloor(planet, worldPos, terrainFloorR) {
+    if (planet !== this.portPlanet || !this.anchor) return terrainFloorR;
+    const d = worldPos.distanceTo(this.anchor.pos);
+    if (d >= this.plazaR) return terrainFloorR;
+    const edge = Math.min(Math.max((d - (this.plazaR - 6)) / 6, 0), 1);
+    const flat = this.deckR * (1 - edge) + terrainFloorR * edge;
+    return Math.max(terrainFloorR, flat);
+  }
 
   build() {
     if (this.built) return;

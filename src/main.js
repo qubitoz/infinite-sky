@@ -116,6 +116,7 @@ const sites = new SiteManager(scene);
 const mining = new MiningManager(scene);
 const spaceport = new SpaceportManager(scene);
 spaceport.init(planets, seed);
+player.spaceport = spaceport; // flat-plaza walking floor over the port
 const gadgetMgr = new GadgetManager(scene);
 let charts = new Set();   // star charts owned (per profile+system)
 let ownedGadgets = new Set(); // gadgets owned (per profile)

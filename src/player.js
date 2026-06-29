@@ -82,6 +82,7 @@ export class Player {
     this.speed = 0;
     this.alt = 0;
     this.onLanded = null; // main hooks this to log touchdowns + open the radar
+    this.spaceport = null; // main sets this so the walk floor flattens over the port plaza
   }
 
   spawn(pos, lookAt) {
@@ -220,13 +221,6 @@ export class Player {
     _v1.copy(_f).multiplyScalar(target);
     if (inp.key('Space')) _v1.addScaledVector(_up.set(0, 1, 0).applyQuaternion(this.quat), 45);
     this.vel.lerp(_v1, 1 - Math.exp(-dt * 2.6));
-    // orbit gravity-hold: near a world, bleed off OUTWARD drift so level flight settles into a
-    // steady orbit ("couples to gravity"); BOOST or Space (deliberate climb) break free.
-    // Descending to land is left untouched (only outward radial velocity is damped).
-    if (orbitProx > 0.04 && !this.boosting && !inp.key('Space') && this.pulse.factor < 0.1) {
-      const radV = this.vel.dot(smp.up);
-      if (radV > 0) this.vel.addScaledVector(smp.up, -radV * Math.min(dt * 2.2, 0.85) * orbitProx);
-    }
     this.pos.addScaledVector(this.vel, dt);
     this.speed = this.vel.length();
 
@@ -500,7 +494,9 @@ export class Player {
     w.pos.addScaledVector(_v2, dt).addScaledVector(up, w.vRad * dt);
 
     const s2 = nearest.sampleAt(w.pos);
-    const standR = s2.floorR + 1.75;
+    // over a spaceport plaza, walk on the flat deck level instead of the bumpy terrain
+    const floorR = this.spaceport ? this.spaceport.flatFloor(nearest, w.pos, s2.floorR) : s2.floorR;
+    const standR = floorR + 1.75;
     if (s2.len <= standR) {
       w.pos.copy(nearest.center).addScaledVector(s2.up, standR);
       if (w.vRad < -16) this.audio.thud();
@@ -511,7 +507,7 @@ export class Player {
       w.grounded = false;
     }
     this.speed = _v2.length();
-    this.alt = s2.len - s2.floorR;
+    this.alt = s2.len - floorR;
 
     const jetting = inp.key('Space') && !w.grounded && w.fuel > 0.02;
 
