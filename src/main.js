@@ -773,7 +773,7 @@ const loop = () => {
 
   // docking: welcome FX + ambient port music while standing in the spaceport
   const atPort = started && player.mode !== 'fly' && spaceport.isPortPlanet(nearest)
-    && spaceport.anchor && player.bodyPos().distanceTo(spaceport.anchor.pos) < 46;
+    && spaceport.anchor && player.bodyPos().distanceTo(spaceport.anchor.pos) < 60;
   if (atPort !== portPrev) {
     portPrev = atPort;
     audio.setPortMode(atPort);

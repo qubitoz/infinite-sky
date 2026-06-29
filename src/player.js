@@ -125,6 +125,8 @@ export class Player {
 
     const smp = nearest.sampleAt(this.pos);
     const atmoF = clamp(1 - (smp.len - nearest.R) / nearest.atmoH, 0, 1);
+    const alt = smp.len - nearest.R;
+    const orbitProx = clamp(1 - alt / (nearest.atmoH * 2.5), 0, 1); // 1 near surface → 0 in deep space
 
     // climate hazard: without the matching shield the upper atmosphere acts
     // as a bouncy, impassable floor (kid-friendly — no damage, just a "nope")
@@ -213,10 +215,18 @@ export class Player {
     // velocity
     _f.set(0, 0, -1).applyQuaternion(this.quat);
     let target = this.throttle * 230 * (this.boosting ? 2.9 : 1) * (1 + 0.25 * this.upgrades.engine);
+    target *= 1 - 0.55 * orbitProx; // near a world, cap gas/boost speed for tighter maneuvering
     target = lerp(target, 24000, this.pulse.factor);
     _v1.copy(_f).multiplyScalar(target);
     if (inp.key('Space')) _v1.addScaledVector(_up.set(0, 1, 0).applyQuaternion(this.quat), 45);
     this.vel.lerp(_v1, 1 - Math.exp(-dt * 2.6));
+    // orbit gravity-hold: near a world, bleed off OUTWARD drift so level flight settles into a
+    // steady orbit ("couples to gravity"); BOOST or Space (deliberate climb) break free.
+    // Descending to land is left untouched (only outward radial velocity is damped).
+    if (orbitProx > 0.04 && !this.boosting && !inp.key('Space') && this.pulse.factor < 0.1) {
+      const radV = this.vel.dot(smp.up);
+      if (radV > 0) this.vel.addScaledVector(smp.up, -radV * Math.min(dt * 2.2, 0.85) * orbitProx);
+    }
     this.pos.addScaledVector(this.vel, dt);
     this.speed = this.vel.length();
 

@@ -40,9 +40,13 @@ export function makeStarfield(rand, total) {
     group.add(pts);
     mats.push(mat);
   };
-  layer(Math.floor(total * 0.62), 1.5, 3.0e5);
-  layer(Math.floor(total * 0.28), 2.3, 2.9e5);
-  layer(Math.floor(total * 0.08), 3.4, 2.8e5);
+  // sky-dome radius sits BEYOND any in-system planet (which can be 0.5M+ away) so the
+  // starfield is always a true backdrop — otherwise distant worlds/billboards poke through
+  // the shell and the star↔planet depth order flips during fast (boost) movement = flicker.
+  // sizeAttenuation:false keeps the on-screen star size constant regardless of this radius.
+  layer(Math.floor(total * 0.62), 1.5, 2.5e6);
+  layer(Math.floor(total * 0.28), 2.3, 2.42e6);
+  layer(Math.floor(total * 0.08), 3.4, 2.33e6);
 
   // galaxy band squashed onto a random plane
   const bandN = randomDir(rand, new THREE.Vector3());
@@ -51,7 +55,7 @@ export function makeStarfield(rand, total) {
   const col = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     randomDir(rand, v);
-    v.addScaledVector(bandN, -v.dot(bandN) * (0.82 + rand() * 0.14)).normalize().multiplyScalar(3.1e5);
+    v.addScaledVector(bandN, -v.dot(bandN) * (0.82 + rand() * 0.14)).normalize().multiplyScalar(2.58e6);
     pos.set([v.x, v.y, v.z], i * 3);
     const b = 0.25 + rand() * 0.45;
     col[i * 3] = b * 0.8; col[i * 3 + 1] = b * 0.85; col[i * 3 + 2] = b;
@@ -84,9 +88,9 @@ export function makeNebulae(rand) {
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     });
     const sp = new THREE.Sprite(mat);
-    randomDir(rand, v).multiplyScalar(2.45e5);
+    randomDir(rand, v).multiplyScalar(2.0e6);
     sp.position.copy(v);
-    const s = 7e4 + rand() * 1.1e5;
+    const s = 5.8e5 + rand() * 9.1e5; // scaled with the larger dome radius (Sprite sizeAttenuation)
     sp.scale.set(s, s * (0.6 + rand() * 0.7), 1);
     sp.frustumCulled = false;
     group.add(sp);
